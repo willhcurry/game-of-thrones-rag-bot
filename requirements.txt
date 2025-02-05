@@ -2,8 +2,8 @@ fastapi
 uvicorn
 langchain
 langchain-community
-sentence-transformers==2.2.2
-langchain-huggingface==0.0.3
+sentence-transformers>=2.6.0
+langchain-huggingface
 chromadb
 numpy==1.23.5
 python-multipart
