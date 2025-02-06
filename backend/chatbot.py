@@ -24,20 +24,22 @@ class GameOfThronesBot:
         return all_chunks
     
     def create_vectorstore(self):
-        """Create vector store from chunks"""
-        embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-            model_kwargs={'device': 'cpu'}
-        )
-        texts = [chunk['content'] for chunk in self.chunks]
-        metadatas = [chunk['metadata'] for chunk in self.chunks]
-        
-        return Chroma.from_texts(
-            texts=texts,
-            embedding=embeddings,
-            metadatas=metadatas,
-            persist_directory="./vectorstore"
-        )
+    """Create vector store from chunks"""
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={'device': 'cpu'},
+        encode_kwargs={'batch_size': 32}  # Smaller batch size
+    )
+    
+    texts = [chunk['content'] for chunk in self.chunks]
+    metadatas = [chunk['metadata'] for chunk in self.chunks]
+    
+    return Chroma.from_texts(
+        texts=texts,
+        embedding=embeddings,
+        metadatas=metadatas,
+        persist_directory="./vectorstore"
+    )
     
     def ask(self, question: str):
         """Ask a question and get a response"""
