@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+gunicorn
 langchain
 langchain-community
 sentence-transformers>=2.6.0
