@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from chatbot import GameOfThronesBot  # Import our chatbot class
+from chatbot import GameOfThronesBot
 import os
 
 app = FastAPI()
@@ -44,5 +44,6 @@ async def ask_question(question: Question):
         }
 
 if __name__ == "__main__":
+    import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)

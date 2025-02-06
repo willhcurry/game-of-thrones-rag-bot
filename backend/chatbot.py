@@ -1,4 +1,4 @@
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings  # Update import
 from langchain_community.vectorstores import Chroma
 import json
 import os
@@ -19,16 +19,19 @@ class GameOfThronesBot:
             if filename.endswith('_rag.json'):
                 with open(os.path.join(self.rag_dir, filename), 'r') as f:
                     data = json.load(f)
-                    all_chunks.extend(data['chunks'])
-                    print(f"Loaded {len(data['chunks'])} chunks from {filename}")
+                    # Load chunks in smaller batches
+                    all_chunks.extend(data['chunks'][:50])  # Limit chunks for testing
+                    print(f"Loaded chunks from {filename}")
         return all_chunks
     
     def create_vectorstore(self):
         """Create vector store from chunks"""
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2",
-            model_kwargs={'device': 'cpu'}
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'batch_size': 8}  # Smaller batch size
         )
+        
         texts = [chunk['content'] for chunk in self.chunks]
         metadatas = [chunk['metadata'] for chunk in self.chunks]
         
@@ -41,12 +44,14 @@ class GameOfThronesBot:
     
     def ask(self, question: str):
         """Ask a question and get a response"""
-        docs = self.vectorstore.similarity_search(question, k=3)
+        docs = self.vectorstore.similarity_search(question, k=2)  # Reduced from 3 to 2
         
         if docs:
-            response = "Here's what I found:\n\n"
+            response = f"Here's what I found:\n\n"
             for i, doc in enumerate(docs, 1):
-                response += f"From {doc.metadata['book_title']}:\n{doc.page_content}\n\n"
+                snippet = doc.page_content[:150] + "..." if len(doc.page_content) > 150 else doc.page_content
+                source = f"{doc.metadata['book_title']}"
+                response += f"From {source}:\n{snippet}\n\n"
             return response
         else:
             return "I couldn't find any relevant information about that."
