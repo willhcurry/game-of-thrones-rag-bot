@@ -1,25 +1,24 @@
-# Virtual Environment
-venv/
-
-# Input/Output folders content
-input/*
-output/*
-!input/.gitkeep
-!output/.gitkeep
-
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-.Python
-*.so
-
-# OS files
-.DS_Storeoutput_backup/
-.python-version
 venv/
 
-# Vectorstore
+# Environment
+.env
+.venv
+env/
+
+# Vector store
 vectorstore/
 backend/vectorstore/
 *.sqlite3
+
+# Keep output/rag_chunks, but ignore other output files
+output/*
+!output/rag_chunks/
+output_backup/
+
+# Keep input structure but ignore content
+input/*
+!input/.gitkeep
