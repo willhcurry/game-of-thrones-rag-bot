@@ -1,21 +1,47 @@
 from fastapi import FastAPI
-import uvicorn
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import os
 
 app = FastAPI()
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.get("/")
 def read_root():
-    return {"Hello": "World"}
+    return {"message": "Game of Thrones Explorer API is running"}
 
-# Print debugging information
-port = int(os.environ.get("PORT", "8000"))
-print(f"Starting server on port {port}")
-print(f"Environment variables:")
-print(f"PORT={os.environ.get('PORT')}")
-print(f"GUNICORN_CMD_ARGS={os.environ.get('GUNICORN_CMD_ARGS')}")
-print(f"Current working directory: {os.getcwd()}")
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
 
-# This needs to run whether the file is imported or run directly
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info") 
+# Initialize chatbot
+try:
+    from chatbot import GameOfThronesBot
+    bot = GameOfThronesBot()
+    print("Successfully initialized GameOfThronesBot")
+
+    class Question(BaseModel):
+        text: str
+
+    @app.post("/ask")
+    async def ask_question(question: Question):
+        try:
+            response = bot.ask(question.text)
+            return {"response": response, "status": "success"}
+        except Exception as e:
+            print(f"Error processing question: {str(e)}")
+            return {
+                "response": "Sorry, I encountered an error processing your question.",
+                "status": "error"
+            }
+
+except Exception as e:
+    print(f"Failed to initialize chatbot: {str(e)}")
