@@ -3,12 +3,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 
+print("Starting server initialization...")
+print(f"PORT={os.environ.get('PORT')}")
+print(f"Current directory: {os.getcwd()}")
+
 app = FastAPI()
 
-# Add CORS middleware
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://game-of-thrones-rag-fkhj2xvjg-willhcurrys-projects.vercel.app",
+        "https://game-of-thrones-rag-d2ywuwzrk-willhcurrys-projects.vercel.app",
+        "https://game-of-thrones-rag.vercel.app",
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
