@@ -3,6 +3,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 venv/
+got_env/
+got_env_py310/
+backend/got_env/
+backend/got_env_py310/
+env/
+.venv/
 
 # Environment
 .env
