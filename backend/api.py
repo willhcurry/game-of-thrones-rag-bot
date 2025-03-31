@@ -27,8 +27,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # Local development
-        "https://game-of-thrones-rag-hvph7qlft-willhcurrys-projects.vercel.app", # Your Vercel URL
-        # Add any other domains that need access
+        "https://game-of-thrones-rag-hvph7qlft-willhcurrys-projects.vercel.app",
+        "https://game-of-thrones-rag-fkhj2xvjg-willhcurrys-projects.vercel.app",
+        "https://game-of-thrones-rag.vercel.app",  # Default production URL (if available)
+        # If you add a custom domain later, include it here
     ],
     allow_credentials=True,
     allow_methods=["*"],
