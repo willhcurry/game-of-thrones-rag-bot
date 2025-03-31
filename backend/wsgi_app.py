@@ -1,16 +1,59 @@
+import json
+import os
+
+# Try to initialize the chatbot
+try:
+    from chatbot import GameOfThronesBot
+    bot = GameOfThronesBot()
+    print("Successfully initialized GameOfThronesBot")
+    bot_available = True
+except Exception as e:
+    print(f"Failed to initialize chatbot: {str(e)}")
+    bot_available = False
+
 def application(environ, start_response):
-    """Simplest possible WSGI application."""
+    """WSGI application with Game of Thrones functionality."""
     status = '200 OK'
     response_headers = [('Content-type', 'application/json')]
-    start_response(status, response_headers)
     
     path = environ.get('PATH_INFO', '')
+    
+    # Handle different endpoints
     if path == '/health':
-        return [b'{"status": "healthy"}']
-    return [b'{"status": "Game of Thrones API is running"}']
+        response_body = json.dumps({"status": "healthy"})
+    elif path == '/ask' and environ.get('REQUEST_METHOD') == 'POST':
+        if not bot_available:
+            status = '500 Internal Server Error'
+            response_body = json.dumps({
+                "response": "Chatbot initialization failed",
+                "status": "error"
+            })
+        else:
+            try:
+                # Get POST data
+                content_length = int(environ.get('CONTENT_LENGTH', 0))
+                post_data = environ.get('wsgi.input').read(content_length)
+                question_data = json.loads(post_data)
+                
+                # Process the question
+                response = bot.ask(question_data.get('text', ''))
+                response_body = json.dumps({
+                    "response": response,
+                    "status": "success"
+                })
+            except Exception as e:
+                status = '500 Internal Server Error'
+                response_body = json.dumps({
+                    "response": f"Error: {str(e)}",
+                    "status": "error"
+                })
+    else:
+        response_body = json.dumps({"status": "Game of Thrones API is running"})
+    
+    start_response(status, response_headers)
+    return [response_body.encode('utf-8')]
 
 if __name__ == '__main__':
-    import os
     from wsgiref.simple_server import make_server
     
     port = int(os.environ.get('PORT', 10000))
