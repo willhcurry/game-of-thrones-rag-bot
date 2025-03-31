@@ -25,7 +25,11 @@ app = FastAPI()
 # Add CORS middleware to allow frontend to communicate with the API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")],
+    allow_origins=[
+        "http://localhost:3000",  # Local development
+        "https://game-of-thrones-rag-hvph7qlft-willhcurrys-projects.vercel.app", # Your Vercel URL
+        # Add any other domains that need access
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

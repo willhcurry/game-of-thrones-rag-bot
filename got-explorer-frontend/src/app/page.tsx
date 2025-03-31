@@ -29,6 +29,9 @@ export default function Home() {
  const [input, setInput] = useState('');
  const [isLoading, setIsLoading] = useState(false);
 
+ // Replace hard-coded URL with environment variable
+ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
  /**
   * Handles form submission when a user sends a question.
   * 
@@ -52,7 +55,7 @@ export default function Home() {
    
    try {
      // Make API call to our Game of Thrones backend
-     const response = await fetch('http://localhost:8000/ask', {
+     const response = await fetch(`${API_URL}/ask`, {
        method: 'POST',
        headers: {
          'Content-Type': 'application/json',
@@ -98,7 +101,7 @@ export default function Home() {
    setMessages(prev => [...prev, { text: question, isUser: true }]);
    setIsLoading(true);
    
-   fetch('http://localhost:8000/ask', {
+   fetch(`${API_URL}/ask`, {
      method: 'POST',
      headers: {
        'Content-Type': 'application/json',
