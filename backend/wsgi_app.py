@@ -11,32 +11,20 @@ except Exception as e:
     print(f"Failed to initialize chatbot: {str(e)}")
     bot_available = False
 
-# CORS allowed origins
-ALLOWED_ORIGINS = [
-    "https://game-of-thrones-rag-fkhj2xvjg-willhcurrys-projects.vercel.app",
-    "https://game-of-thrones-rag-d2ywuwzrk-willhcurrys-projects.vercel.app",
-    "https://game-of-thrones-rag.vercel.app",
-    "http://localhost:3000"
-]
-
 def application(environ, start_response):
-    """WSGI application with Game of Thrones functionality and CORS support."""
-    # Get request origin
-    origin = environ.get('HTTP_ORIGIN', '')
-    method = environ.get('REQUEST_METHOD', '')
+    """WSGI application with Game of Thrones functionality."""
+    status = '200 OK'
     
-    # Set up response headers with CORS if origin is allowed
-    response_headers = [('Content-type', 'application/json')]
-    if origin in ALLOWED_ORIGINS:
-        response_headers.extend([
-            ('Access-Control-Allow-Origin', origin),
-            ('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'),
-            ('Access-Control-Allow-Headers', 'Content-Type'),
-            ('Access-Control-Allow-Credentials', 'true')
-        ])
+    # Basic CORS support - allow all origins
+    response_headers = [
+        ('Content-type', 'application/json'),
+        ('Access-Control-Allow-Origin', '*'),
+        ('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'),
+        ('Access-Control-Allow-Headers', 'Content-Type')
+    ]
     
     # Handle preflight OPTIONS request
-    if method == 'OPTIONS':
+    if environ.get('REQUEST_METHOD') == 'OPTIONS':
         start_response('204 No Content', response_headers)
         return [b'']
     
@@ -44,15 +32,11 @@ def application(environ, start_response):
     
     # Handle different endpoints
     if path == '/health':
-        status = '200 OK'
         response_body = json.dumps({"status": "healthy"})
     elif path == '/ask' and environ.get('REQUEST_METHOD') == 'POST':
         if not bot_available:
             status = '500 Internal Server Error'
-            response_body = json.dumps({
-                "response": "Chatbot initialization failed",
-                "status": "error"
-            })
+            response_body = json.dumps({"status": "error"})
         else:
             try:
                 # Get POST data
@@ -62,19 +46,14 @@ def application(environ, start_response):
                 
                 # Process the question
                 response = bot.ask(question_data.get('text', ''))
-                status = '200 OK'
                 response_body = json.dumps({
                     "response": response,
                     "status": "success"
                 })
             except Exception as e:
                 status = '500 Internal Server Error'
-                response_body = json.dumps({
-                    "response": f"Error: {str(e)}",
-                    "status": "error"
-                })
+                response_body = json.dumps({"status": "error"})
     else:
-        status = '200 OK'
         response_body = json.dumps({"status": "Game of Thrones API is running"})
     
     start_response(status, response_headers)
