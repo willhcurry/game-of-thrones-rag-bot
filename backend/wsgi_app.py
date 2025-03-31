@@ -11,15 +11,40 @@ except Exception as e:
     print(f"Failed to initialize chatbot: {str(e)}")
     bot_available = False
 
+# CORS allowed origins
+ALLOWED_ORIGINS = [
+    "https://game-of-thrones-rag-fkhj2xvjg-willhcurrys-projects.vercel.app",
+    "https://game-of-thrones-rag-d2ywuwzrk-willhcurrys-projects.vercel.app",
+    "https://game-of-thrones-rag.vercel.app",
+    "http://localhost:3000"
+]
+
 def application(environ, start_response):
-    """WSGI application with Game of Thrones functionality."""
-    status = '200 OK'
+    """WSGI application with Game of Thrones functionality and CORS support."""
+    # Get request origin
+    origin = environ.get('HTTP_ORIGIN', '')
+    method = environ.get('REQUEST_METHOD', '')
+    
+    # Set up response headers with CORS if origin is allowed
     response_headers = [('Content-type', 'application/json')]
+    if origin in ALLOWED_ORIGINS:
+        response_headers.extend([
+            ('Access-Control-Allow-Origin', origin),
+            ('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'),
+            ('Access-Control-Allow-Headers', 'Content-Type'),
+            ('Access-Control-Allow-Credentials', 'true')
+        ])
+    
+    # Handle preflight OPTIONS request
+    if method == 'OPTIONS':
+        start_response('204 No Content', response_headers)
+        return [b'']
     
     path = environ.get('PATH_INFO', '')
     
     # Handle different endpoints
     if path == '/health':
+        status = '200 OK'
         response_body = json.dumps({"status": "healthy"})
     elif path == '/ask' and environ.get('REQUEST_METHOD') == 'POST':
         if not bot_available:
@@ -37,6 +62,7 @@ def application(environ, start_response):
                 
                 # Process the question
                 response = bot.ask(question_data.get('text', ''))
+                status = '200 OK'
                 response_body = json.dumps({
                     "response": response,
                     "status": "success"
@@ -48,6 +74,7 @@ def application(environ, start_response):
                     "status": "error"
                 })
     else:
+        status = '200 OK'
         response_body = json.dumps({"status": "Game of Thrones API is running"})
     
     start_response(status, response_headers)
