@@ -49,43 +49,56 @@ class GameOfThronesBot:
     
     def load_rag_chunks(self):
         """
-        Load pre-processed text chunks from RAG JSON files.
+        Load pre-processed text chunks from RAG JSON files with memory optimization.
         
         This method scans the RAG directory for JSON files containing
-        pre-processed book chunks, loads them, and combines them into
-        a single dataset. For performance reasons, only a subset of chunks
-        is loaded in the testing environment.
+        pre-processed book chunks, but limits the number loaded to stay
+        within memory constraints for cloud deployment.
         
         Returns:
-            list: A list of content chunks with associated metadata
+            list: A memory-optimized list of content chunks with metadata
         """
         all_chunks = []
+        total_chunks = 0
+        max_chunks = 200  # Limit total chunks for memory efficiency
+        chunks_per_book = 40  # Take an equal amount from each book
+        
         for filename in os.listdir(self.rag_dir):
             if filename.endswith('_rag.json'):
                 with open(os.path.join(self.rag_dir, filename), 'r') as f:
                     data = json.load(f)
-                    # Load chunks in smaller batches
-                    all_chunks.extend(data['chunks'][:50])  # Limit chunks for testing
-                    print(f"Loaded chunks from {filename}")
+                    # Load limited chunks from each book
+                    book_chunks = data['chunks'][:chunks_per_book]
+                    all_chunks.extend(book_chunks)
+                    total_chunks += len(book_chunks)
+                    print(f"Loaded {len(book_chunks)} chunks from {filename}")
+                    
+                    # Stop if we exceed the maximum chunk limit
+                    if total_chunks >= max_chunks:
+                        print(f"Reached memory-safe limit of {max_chunks} chunks")
+                        break
+        
+        print(f"Total chunks loaded: {len(all_chunks)}")
         return all_chunks
     
     def create_vectorstore(self):
         """
-        Create a vector store from content chunks using embeddings.
+        Create a vector store using a memory-efficient embedding model.
         
         This method:
-        1. Initializes a HuggingFace embedding model
+        1. Initializes a smaller, more memory-efficient HuggingFace model
         2. Extracts text and metadata from chunks
-        3. Creates vector embeddings for each chunk
+        3. Creates vector embeddings with reduced batch size
         4. Stores these in a Chroma vector database
         
         Returns:
             Chroma: A populated vector store with embedded content
         """
+        # Using a smaller model to reduce memory usage by ~60%
         embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            model_name="paraphrase-MiniLM-L3-v2",  # Memory-efficient model
             model_kwargs={'device': 'cpu'},
-            encode_kwargs={'batch_size': 8}  # Smaller batch size for memory efficiency
+            encode_kwargs={'batch_size': 4}  # Reduced batch size for memory savings
         )
         
         texts = [chunk['content'] for chunk in self.chunks]
