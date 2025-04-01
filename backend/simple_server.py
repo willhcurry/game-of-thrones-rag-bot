@@ -18,22 +18,21 @@ bot_available = False
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def _send_cors_headers(self):
-        """Helper method to consistently send CORS headers"""
+        # Use wildcard to allow all origins or specify your Vercel domains
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.send_header("Access-Control-Allow-Credentials", "true")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header("Access-Control-Max-Age", "86400")  # 24 hours
 
     def do_OPTIONS(self):
-        try:
-            print(f"Handling OPTIONS request to {self.path}")
-            self.send_response(204)
-            self._send_cors_headers()
-            self.end_headers()
-            print("OPTIONS request handled successfully")
-        except Exception as e:
-            print(f"Error in do_OPTIONS: {str(e)}")
-            traceback.print_exc()
+        # This method needs to be implemented correctly for preflight requests
+        print(f"Handling OPTIONS request to {self.path}")
+        # Send 204 No Content for OPTIONS
+        self.send_response(204)
+        self.send_header("Content-Length", "0")
+        self._send_cors_headers()
+        self.end_headers()
+        print("OPTIONS request completed")
         
     def do_GET(self):
         try:
