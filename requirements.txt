@@ -11,3 +11,5 @@ python-multipart
 ebooklib
 beautifulsoup4
 PyMuPDF
+flask
+flask-cors
