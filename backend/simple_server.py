@@ -79,7 +79,14 @@ try:
                             print(f"Processing question: {question_text}")
                             
                             response = bot.ask(question_text)
-                            print(f"Generated response: {response}")
+                            print(f"Generated response length: {len(response)} characters")
+                            
+                            # Truncate extremely long responses
+                            if len(response) > 1000:
+                                print("Response too long, truncating...")
+                                sentences = response.split('. ')
+                                truncated_response = '. '.join(sentences[:10]) + '... (Response truncated for better readability)'
+                                response = truncated_response
                             
                             response_json = json.dumps({
                                 "response": response,
