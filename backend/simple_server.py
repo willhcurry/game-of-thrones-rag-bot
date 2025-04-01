@@ -56,86 +56,66 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         global bot, bot_available
         
         try:
-            print(f"Handling POST request to {self.path}")
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             post_data_str = post_data.decode('utf-8')
-            print(f"Received POST data: {post_data_str}")
+            print(f"Received POST request to {self.path} with data length: {len(post_data_str)}")
             
-            self.send_response(200)
-            self.send_header("Content-type", "application/json")
-            self._send_cors_headers()
-            self.end_headers()
+            # Prepare response
+            response_dict = {"status": "error", "response": "Unknown endpoint"}
             
             if self.path == "/ask":
-                # Lazy load the bot only when needed
-                if bot is None and not bot_available:
-                    try:
-                        print("Attempting to initialize bot...")
-                        from chatbot import GameOfThronesBot
-                        bot = GameOfThronesBot()
-                        bot_available = True
-                        print("Bot initialized successfully")
-                    except Exception as e:
-                        print(f"Failed to initialize bot: {str(e)}")
-                        traceback.print_exc()
-                
-                if bot_available:
-                    try:
-                        question_data = json.loads(post_data_str)
-                        question_text = question_data.get('text', '')
-                        print(f"Processing question: {question_text}")
-                        
-                        response = bot.ask(question_text)
-                        print(f"Generated response length: {len(response)} characters")
-                        
-                        # Truncate extremely long responses
-                        if len(response) > 1000:
-                            print("Response too long, truncating...")
-                            sentences = response.split('. ')
-                            truncated_response = '. '.join(sentences[:10]) + '... (Response truncated for better readability)'
-                            response = truncated_response
-                        
-                        response_json = json.dumps({
-                            "response": response,
-                            "status": "success"
-                        })
-                        self.wfile.write(response_json.encode('utf-8'))
-                        
-                        # Force garbage collection after response
-                        gc.collect()
-                        
-                    except Exception as e:
-                        print(f"Error processing question: {str(e)}")
-                        traceback.print_exc()
-                        self.send_response(500)
-                        self.send_header("Content-type", "application/json")
-                        self._send_cors_headers()
-                        self.end_headers()
-                        response_json = json.dumps({
-                            "response": "Sorry, I encountered an error processing your question.",
-                            "status": "error"
-                        })
-                        self.wfile.write(response_json.encode('utf-8'))
-                else:
-                    print("Bot not available, sending placeholder response")
-                    response_json = json.dumps({
-                        "response": "The Game of Thrones chatbot is currently initializing. Please try again later.",
-                        "status": "success"
-                    })
-                    self.wfile.write(response_json.encode('utf-8'))
-            else:
-                self.wfile.write(b'{"status":"unknown endpoint"}')
+                try:
+                    question_data = json.loads(post_data_str)
+                    question_text = question_data.get('text', '')
+                    print(f"Processing question: {question_text}")
+                    
+                    # Simple placeholder response for testing
+                    response_dict = {
+                        "status": "success",
+                        "response": "This is a test response to your question about Game of Thrones."
+                    }
+                    
+                    # Don't try to use the bot yet - just test JSON response first
+                    # Once we confirm basic JSON works, we can add bot functionality back
+                    
+                except Exception as e:
+                    print(f"Error processing POST data: {str(e)}")
+                    response_dict = {
+                        "status": "error",
+                        "response": "Error processing your request"
+                    }
             
-            print("POST request handled successfully")
-        except Exception as e:
-            print(f"Error in do_POST: {str(e)}")
-            traceback.print_exc()
-            self.send_response(500)
+            # Convert response dict to JSON and ensure it's properly encoded
+            response_json = json.dumps(response_dict)
+            response_bytes = response_json.encode('utf-8')
+            
+            # Send response with proper headers
+            self.send_response(200)
             self.send_header("Content-type", "application/json")
+            self.send_header("Content-Length", str(len(response_bytes)))
             self._send_cors_headers()
             self.end_headers()
-            self.wfile.write(b'{"status":"error","message":"Internal server error"}')
+            
+            # Log response for debugging
+            print(f"Sending response: {response_json}")
+            
+            # Write response
+            self.wfile.write(response_bytes)
+            
+        except Exception as e:
+            print(f"Critical error in do_POST: {str(e)}")
+            try:
+                # Send a minimal error response
+                error_response = json.dumps({"status": "error", "response": "Server error"})
+                self.send_response(500)
+                self.send_header("Content-type", "application/json")
+                self.send_header("Content-Length", str(len(error_response.encode('utf-8'))))
+                self._send_cors_headers()
+                self.end_headers()
+                self.wfile.write(error_response.encode('utf-8'))
+            except:
+                print("Failed to send error response")
 
 # Try to get the port with extra error handling
 try:
