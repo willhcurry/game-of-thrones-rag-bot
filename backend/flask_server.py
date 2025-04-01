@@ -1,28 +1,21 @@
 from flask import Flask, request, jsonify
 import os
-import gc
-import json
+import traceback
 
 app = Flask(__name__)
 
-# CORS configuration - added to every response
+# CORS configuration
 @app.after_request
 def add_cors_headers(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     return response
 
-# Handle OPTIONS requests explicitly
 @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
 @app.route('/<path:path>', methods=['OPTIONS'])
 def options_handler(path):
     return jsonify({}), 200
-
-# Global variables with lazy initialization
-bot = None
-bot_available = False
-bot_initialized = False
 
 @app.route('/')
 def index():
@@ -34,75 +27,31 @@ def health():
 
 @app.route('/ask', methods=['POST'])
 def ask():
-    global bot, bot_available, bot_initialized
-    
     try:
+        # Get question from request
         data = request.json
         question = data.get('text', '')
-        print(f"Received question: {question}")
+        print(f"Processing question: {question}")
         
-        # First request - initialize bot in background
-        if not bot_initialized:
-            try:
-                print("Starting bot initialization...")
-                bot_initialized = True  # Mark initialization attempted
-                
-                # Try to import the minimal version
-                from memory_optimized_chatbot import GameOfThronesBot
-                bot = GameOfThronesBot()
-                bot_available = True
-                print("Bot initialized successfully")
-                
-            except Exception as e:
-                print(f"Failed to initialize bot: {str(e)}")
-                bot_available = False
-                
-                # Return quick response for first question
-                return jsonify({
-                    "status": "initializing",
-                    "response": f"I'm searching for information about '{question}'. Please try asking again in a moment."
-                })
+        # Generate a simple static response for testing
+        # Don't try to use the ML models yet until we confirm basic processing works
+        response_text = f"You asked about '{question}'. This is a static test response while we debug the server issues."
         
-        # If bot is available, use it
-        if bot_available:
-            try:
-                # Process the question
-                response_text = bot.ask(question)
-                
-                # Truncate long responses
-                if len(response_text) > 800:
-                    sentences = response_text.split('. ')
-                    response_text = '. '.join(sentences[:8]) + '... (Response truncated for readability)'
-                
-                # Force garbage collection to free memory
-                gc.collect()
-                
-                return jsonify({
-                    "status": "success",
-                    "response": response_text
-                })
-                
-            except Exception as e:
-                print(f"Error processing question: {str(e)}")
-                return jsonify({
-                    "status": "error",
-                    "response": "I encountered an error while searching for information."
-                })
-        else:
-            # Fallback response if bot initialization failed
-            return jsonify({
-                "status": "unavailable",
-                "response": "I'm having trouble accessing my knowledge base right now. Please try again later."
-            })
-            
-    except Exception as e:
-        print(f"Unexpected error: {str(e)}")
         return jsonify({
-            "status": "error",
-            "response": "An unexpected error occurred."
+            "status": "success",
+            "response": response_text
+        })
+        
+    except Exception as e:
+        # Log the full error with traceback
+        print(f"Error: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            "status": "error", 
+            "response": f"Server error: {str(e)}"
         }), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     print(f"Starting server on port {port}")
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, threaded=False)  # Disable threading for stability
