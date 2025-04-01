@@ -1,5 +1,5 @@
 """
-Game of Thrones Knowledge Bot
+Game of Thrones Knowledge Bot - Memory Optimized Version
 
 This module implements a Retrieval Augmented Generation (RAG) system for
 answering questions about the Game of Thrones book series. It uses:
@@ -16,6 +16,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 import json
 import os
+import gc
 
 class GameOfThronesBot:
     """
@@ -32,125 +33,122 @@ class GameOfThronesBot:
     """
     
     def __init__(self):
-        """
-        Initialize the Game of Thrones knowledge base.
-        
-        This constructor:
-        1. Sets up the path to pre-processed RAG chunks
-        2. Loads the chunks into memory
-        3. Creates and initializes the vector store with embeddings
-        """
+        """Initialize with minimal memory footprint"""
+        print("Initializing Game of Thrones Knowledge Base (memory-optimized)...")
         self.rag_dir = os.path.join("..", "output", "rag_chunks")
-        print("Initializing Game of Thrones Knowledge Base...")
-        
-        # Load chunks and create vectorstore
-        self.chunks = self.load_rag_chunks()
-        self.vectorstore = self.create_vectorstore()
+        self.chunks = None
+        self.vectorstore = None
+        self.embeddings = None
+        # Don't load anything in constructor - lazy load on first query
+    
+    def _ensure_initialized(self):
+        """Lazy initialization of resources when needed"""
+        if self.vectorstore is None:
+            self.chunks = self.load_rag_chunks()
+            self.vectorstore = self.create_vectorstore()
     
     def load_rag_chunks(self):
-        """
-        Load pre-processed text chunks from RAG JSON files with memory optimization.
-        
-        This method scans the RAG directory for JSON files containing
-        pre-processed book chunks, but limits the number loaded to stay
-        within memory constraints for cloud deployment.
-        
-        Returns:
-            list: A memory-optimized list of content chunks with metadata
-        """
+        """Load minimal chunks to stay within memory constraints"""
         all_chunks = []
-        total_chunks = 0
-        max_chunks = 200  # Limit total chunks for memory efficiency
-        chunks_per_book = 40  # Take an equal amount from each book
+        max_chunks = 100  # Reduced from 200 to 100
+        chunks_per_book = 20  # Reduced from 40 to 20
         
-        for filename in os.listdir(self.rag_dir):
-            if filename.endswith('_rag.json'):
-                with open(os.path.join(self.rag_dir, filename), 'r') as f:
-                    data = json.load(f)
-                    # Load limited chunks from each book
-                    book_chunks = data['chunks'][:chunks_per_book]
-                    all_chunks.extend(book_chunks)
-                    total_chunks += len(book_chunks)
-                    print(f"Loaded {len(book_chunks)} chunks from {filename}")
-                    
-                    # Stop if we exceed the maximum chunk limit
-                    if total_chunks >= max_chunks:
-                        print(f"Reached memory-safe limit of {max_chunks} chunks")
-                        break
+        # Create output/rag_chunks directory if it doesn't exist (for development)
+        os.makedirs(os.path.join("..", "output", "rag_chunks"), exist_ok=True)
         
-        print(f"Total chunks loaded: {len(all_chunks)}")
-        return all_chunks
+        try:
+            # List the directory contents
+            files = os.listdir(self.rag_dir)
+            if not files:
+                # Fallback data if no files available
+                return [
+                    {"content": "House Stark rules the North from their seat at Winterfell.", 
+                     "metadata": {"book_title": "A Game of Thrones"}}
+                ]
+                
+            for filename in files:
+                if filename.endswith('_rag.json'):
+                    with open(os.path.join(self.rag_dir, filename), 'r') as f:
+                        data = json.load(f)
+                        # Load smaller number of chunks
+                        book_chunks = data['chunks'][:chunks_per_book]
+                        all_chunks.extend(book_chunks)
+                        
+                        if len(all_chunks) >= max_chunks:
+                            break
+            
+            print(f"Loaded {len(all_chunks)} chunks (memory-optimized)")
+            return all_chunks
+        except Exception as e:
+            print(f"Error loading chunks: {str(e)}")
+            # Return minimal fallback data
+            return [
+                {"content": "House Stark rules the North from their seat at Winterfell.", 
+                 "metadata": {"book_title": "A Game of Thrones"}}
+            ]
     
     def create_vectorstore(self):
-        """
-        Create a vector store using a memory-efficient embedding model.
-        
-        This method:
-        1. Initializes a smaller, more memory-efficient HuggingFace model
-        2. Extracts text and metadata from chunks
-        3. Creates vector embeddings with reduced batch size
-        4. Stores these in a Chroma vector database
-        
-        Returns:
-            Chroma: A populated vector store with embedded content
-        """
-        # Using a smaller model to reduce memory usage by ~60%
-        embeddings = HuggingFaceEmbeddings(
-            model_name="paraphrase-MiniLM-L3-v2",  # Memory-efficient model
-            model_kwargs={'device': 'cpu'},
-            encode_kwargs={'batch_size': 4}  # Reduced batch size for memory savings
-        )
-        
-        texts = [chunk['content'] for chunk in self.chunks]
-        metadatas = [chunk['metadata'] for chunk in self.chunks]
-        
-        return Chroma.from_texts(
-            texts=texts,
-            embedding=embeddings,
-            metadatas=metadatas,
-            persist_directory="./vectorstore"
-        )
+        """Create vector store with minimal memory usage"""
+        try:
+            # Initialize the embedding model only when needed
+            self.embeddings = HuggingFaceEmbeddings(
+                model_name="paraphrase-MiniLM-L3-v2",
+                model_kwargs={'device': 'cpu'},
+                encode_kwargs={'batch_size': 2}  # Reduced batch size further
+            )
+            
+            texts = [chunk['content'] for chunk in self.chunks]
+            metadatas = [chunk['metadata'] for chunk in self.chunks]
+            
+            # Create vectorstore with smaller collection name
+            vectorstore = Chroma.from_texts(
+                texts=texts,
+                embedding=self.embeddings,
+                metadatas=metadatas,
+                persist_directory="./vectorstore"
+            )
+            
+            # Force garbage collection after creating vector store
+            gc.collect()
+            
+            return vectorstore
+        except Exception as e:
+            print(f"Error creating vectorstore: {str(e)}")
+            return None
     
     def ask(self, question: str):
-        """
-        Answer a question about Game of Thrones using RAG retrieval.
-        
-        This method:
-        1. Performs a similarity search between the question and embedded chunks
-        2. Retrieves the most relevant passages from the books
-        3. Formats the response with source attribution
-        4. Optionally adds contextual information for certain topics
-        
-        Args:
-            question (str): The user's question about Game of Thrones
+        """Process question with memory optimization"""
+        try:
+            # Ensure resources are initialized
+            self._ensure_initialized()
             
-        Returns:
-            str: A formatted response containing relevant passages from the books
-        """
-        # Find the most relevant chunks using semantic similarity
-        docs = self.vectorstore.similarity_search(question, k=2)
-        
-        if docs:
-            # Extract metadata for better formatting
-            sources = set()
-            content = []
+            if self.vectorstore is None:
+                return "I'm having trouble accessing my knowledge base at the moment."
             
-            for doc in docs:
-                snippet = doc.page_content
-                source = f"{doc.metadata['book_title']}"
-                sources.add(source)
-                content.append({"source": source, "content": snippet})
+            # Reduce k from 2 to 1 to get fewer results
+            docs = self.vectorstore.similarity_search(question, k=1)
             
-            # Build a nicely formatted response with source attribution
-            response = f"Here's what I found:\n\n"
-            for item in content:
-                response += f"From {item['source']}:\n{item['content']}\n\n"
-            
-            # Add extra context based on entity recognition
-            # This enhances responses with additional background information
-            if "stark" in question.lower() or "jon" in question.lower():
-                response += "\nHouse Stark is one of the Great Houses of Westeros, ruling over the vast region known as the North."
-            
-            return response
-        else:
-            return "I couldn't find any relevant information about that."
+            if docs:
+                sources = set()
+                content = []
+                
+                for doc in docs:
+                    snippet = doc.page_content
+                    source = f"{doc.metadata['book_title']}"
+                    sources.add(source)
+                    content.append({"source": source, "content": snippet})
+                
+                # Build a more concise response
+                response = "Here's what I found:\n\n"
+                for item in content:
+                    response += f"From {item['source']}:\n{item['content']}\n\n"
+                
+                # Force garbage collection after query
+                gc.collect()
+                
+                return response
+            else:
+                return "I couldn't find any relevant information about that."
+        except Exception as e:
+            print(f"Error in ask: {str(e)}")
+            return "I encountered an error while searching for information."
