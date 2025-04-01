@@ -30,7 +30,7 @@ export default function Home() {
  const [isLoading, setIsLoading] = useState(false);
 
  // Replace hard-coded URL with environment variable
- const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+ const API_URL = '/api';
 
  /**
   * Handles form submission when a user sends a question.
