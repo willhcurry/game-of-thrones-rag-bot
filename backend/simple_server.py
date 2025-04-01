@@ -26,12 +26,30 @@ except Exception as e:
 
 try:
     class Handler(http.server.SimpleHTTPRequestHandler):
+        def _send_cors_headers(self):
+            """Helper method to consistently send CORS headers"""
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Allow-Credentials", "true")
+
+        def do_OPTIONS(self):
+            try:
+                print(f"Handling OPTIONS request to {self.path}")
+                self.send_response(204)
+                self._send_cors_headers()
+                self.end_headers()
+                print("OPTIONS request handled successfully")
+            except Exception as e:
+                print(f"Error in do_OPTIONS: {str(e)}")
+                traceback.print_exc()
+        
         def do_GET(self):
             try:
                 print(f"Handling GET request to {self.path}")
                 self.send_response(200)
                 self.send_header("Content-type", "application/json")
-                self.send_header("Access-Control-Allow-Origin", "*")
+                self._send_cors_headers()
                 self.end_headers()
                 
                 if self.path == "/health":
@@ -43,19 +61,6 @@ try:
                 print(f"Error in do_GET: {str(e)}")
                 traceback.print_exc()
                 
-        def do_OPTIONS(self):
-            try:
-                print(f"Handling OPTIONS request to {self.path}")
-                self.send_response(204)
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                self.send_header("Access-Control-Allow-Headers", "Content-Type")
-                self.end_headers()
-                print("OPTIONS request handled successfully")
-            except Exception as e:
-                print(f"Error in do_OPTIONS: {str(e)}")
-                traceback.print_exc()
-        
         def do_POST(self):
             try:
                 print(f"Handling POST request to {self.path}")
@@ -66,9 +71,7 @@ try:
                 
                 self.send_response(200)
                 self.send_header("Content-type", "application/json")
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                self.send_header("Access-Control-Allow-Headers", "Content-Type")
+                self._send_cors_headers()
                 self.end_headers()
                 
                 if self.path == "/ask":
@@ -96,6 +99,10 @@ try:
                         except Exception as e:
                             print(f"Error processing question: {str(e)}")
                             traceback.print_exc()
+                            self.send_response(500)
+                            self.send_header("Content-type", "application/json")
+                            self._send_cors_headers()
+                            self.end_headers()
                             response_json = json.dumps({
                                 "response": "Sorry, I encountered an error processing your question.",
                                 "status": "error"
@@ -115,14 +122,11 @@ try:
             except Exception as e:
                 print(f"Error in do_POST: {str(e)}")
                 traceback.print_exc()
-                try:
-                    self.send_response(500)
-                    self.send_header("Content-type", "application/json")
-                    self.send_header("Access-Control-Allow-Origin", "*")
-                    self.end_headers()
-                    self.wfile.write(b'{"status":"error","message":"Internal server error"}')
-                except:
-                    print("Failed to send error response")
+                self.send_response(500)
+                self.send_header("Content-type", "application/json")
+                self._send_cors_headers()
+                self.end_headers()
+                self.wfile.write(b'{"status":"error","message":"Internal server error"}')
 
     # Try to get the port with extra error handling
     try:
