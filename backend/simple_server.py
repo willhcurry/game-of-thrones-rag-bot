@@ -6,6 +6,10 @@ import json
 PORT = int(os.environ.get("PORT", 10000))
 print(f"Starting server on port {PORT}")
 
+# Global variables for chatbot
+bot = None
+bot_available = False
+
 class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         # Add CORS headers to every response
@@ -41,10 +45,31 @@ class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 request_json = json.loads(post_data)
                 question = request_json.get('text', '')
                 
-                # Generate a simple response
+                # Initialize the chatbot if needed
+                global bot, bot_available
+                if bot is None and not bot_available:
+                    try:
+                        from chatbot import GameOfThronesBot
+                        bot = GameOfThronesBot()
+                        bot_available = True
+                    except Exception as e:
+                        print(f"Failed to initialize chatbot: {str(e)}")
+                        bot_available = False
+                
+                # Generate response using chatbot or fallback
+                if bot_available:
+                    response_text = bot.ask(question)
+                    # Truncate if too long
+                    if len(response_text) > 1000:
+                        sentences = response_text.split('. ')
+                        response_text = '. '.join(sentences[:10]) + '... (Response truncated)'
+                else:
+                    response_text = "The chatbot is currently unavailable. Please try again later."
+                
+                # Create response object
                 response = {
                     "status": "success",
-                    "response": f"You asked: {question}\n\nThis is a simple test response while we debug CORS issues."
+                    "response": response_text
                 }
                 
                 # Send the response
