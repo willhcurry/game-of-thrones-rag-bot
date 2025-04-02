@@ -67,7 +67,8 @@ export default function Home() {
        
        if (ragResponse.ok) {
          const data = await ragResponse.json();
-         setMessages(prev => [...prev, { text: data.response, isUser: false }]);
+         const botResponse = data.response || data.answer || "No response received";
+         setMessages(prev => [...prev, { text: botResponse, isUser: false }]);
          setIsLoading(false);
          setInput('');
          return;
@@ -89,7 +90,8 @@ export default function Home() {
 
      // Process and display the response
      const data = await fallbackResponse.json();
-     setMessages(prev => [...prev, { text: data.response, isUser: false }]);
+     const botResponse = data.response || data.answer || "No response received";
+     setMessages(prev => [...prev, { text: botResponse, isUser: false }]);
    } catch (error) {
      console.error('Error submitting question:', error);
      setMessages(prev => [...prev, { 
@@ -137,7 +139,8 @@ export default function Home() {
      throw new Error('RAG backend failed');
    })
    .then(data => {
-     setMessages(prev => [...prev, { text: data.response, isUser: false }]);
+     const botResponse = data.response || data.answer || "No response received";
+     setMessages(prev => [...prev, { text: botResponse, isUser: false }]);
    })
    .catch(error => {
      console.log("Falling back to local API", error);
@@ -152,7 +155,8 @@ export default function Home() {
        return response.json();
      })
      .then(data => {
-       setMessages(prev => [...prev, { text: data.response, isUser: false }]);
+       const botResponse = data.response || data.answer || "No response received";
+       setMessages(prev => [...prev, { text: botResponse, isUser: false }]);
      });
    })
    .catch(error => {
