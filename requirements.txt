@@ -14,5 +14,5 @@ PyMuPDF
 flask
 flask-cors
 gradio
-pydanticfaiss-cpu
+pydantic
 faiss-cpu
