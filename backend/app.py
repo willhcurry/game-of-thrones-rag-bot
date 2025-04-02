@@ -22,6 +22,7 @@ from langchain.llms import HuggingFaceHub
 from langchain.chains import ConversationalRetrievalChain
 from langchain.document_loaders.text import TextLoader
 from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationChain
 
 # Initialize FastAPI
 app = FastAPI()
@@ -62,11 +63,11 @@ else:
 
 # Initialize LLM and chat chain
 llm = HuggingFaceHub(repo_id="HuggingFaceH4/zephyr-7b-beta", model_kwargs={"temperature": 0.7})
-memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-qa_chain = ConversationalRetrievalChain.from_llm(
+memory = ConversationBufferMemory()
+qa_chain = ConversationChain(
     llm=llm,
-    retriever=vector_store.as_retriever(),
     memory=memory,
+    verbose=True
 )
 
 def respond(message, history):
