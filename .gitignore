@@ -49,4 +49,7 @@ dist
 .vscode/
 *.swp
 *.swo
-.DS_Store
+.DS_Storebackend/got_env/
+venv/
+__pycache__/
+*.pyc
