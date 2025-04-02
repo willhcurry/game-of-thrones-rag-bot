@@ -72,7 +72,7 @@ export default function Home() {
          setInput('');
          return;
        }
-     } catch (ragError) {
+     } catch {
        console.log("RAG backend unavailable, using fallback");
      }
 
