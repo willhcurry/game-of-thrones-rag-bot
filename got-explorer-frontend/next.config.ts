@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
+        source: '/api/rag/:path*',
         destination: 'https://game-of-thrones-rag-bot.onrender.com/:path*',
       },
     ];

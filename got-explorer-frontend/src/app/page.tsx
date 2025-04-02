@@ -29,9 +29,6 @@ export default function Home() {
  const [input, setInput] = useState('');
  const [isLoading, setIsLoading] = useState(false);
 
- // Replace hard-coded URL with environment variable
- const API_URL = '/api';
-
  /**
   * Handles form submission when a user sends a question.
   * 
@@ -54,21 +51,44 @@ export default function Home() {
    setIsLoading(true);
    
    try {
-     // Make API call to our Game of Thrones backend
-     const response = await fetch(`${API_URL}/ask`, {
+     // Try the RAG backend first
+     try {
+       const controller = new AbortController();
+       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+       
+       const ragResponse = await fetch('/api/rag/ask', {
+         method: 'POST',
+         headers: {'Content-Type': 'application/json'},
+         body: JSON.stringify({ text: input }),
+         signal: controller.signal
+       });
+       
+       clearTimeout(timeoutId);
+       
+       if (ragResponse.ok) {
+         const data = await ragResponse.json();
+         setMessages(prev => [...prev, { text: data.response, isUser: false }]);
+         setIsLoading(false);
+         setInput('');
+         return;
+       }
+     } catch (ragError) {
+       console.log("RAG backend unavailable, using fallback");
+     }
+
+     // If RAG backend fails, use the local implementation
+     const fallbackResponse = await fetch('/api/ask', {
        method: 'POST',
-       headers: {
-         'Content-Type': 'application/json',
-       },
+       headers: {'Content-Type': 'application/json'},
        body: JSON.stringify({ text: input }),
      });
-     
-     if (!response.ok) {
-       throw new Error(`HTTP error! status: ${response.status}`);
+
+     if (!fallbackResponse.ok) {
+       throw new Error(`HTTP error! status: ${fallbackResponse.status}`);
      }
 
      // Process and display the response
-     const data = await response.json();
+     const data = await fallbackResponse.json();
      setMessages(prev => [...prev, { text: data.response, isUser: false }]);
    } catch (error) {
      console.error('Error submitting question:', error);
@@ -101,19 +121,39 @@ export default function Home() {
    setMessages(prev => [...prev, { text: question, isUser: true }]);
    setIsLoading(true);
    
-   fetch(`${API_URL}/ask`, {
+   // Try RAG backend first with timeout
+   const controller = new AbortController();
+   const timeoutId = setTimeout(() => controller.abort(), 5000);
+   
+   fetch('/api/rag/ask', {
      method: 'POST',
-     headers: {
-       'Content-Type': 'application/json',
-     },
+     headers: {'Content-Type': 'application/json'},
      body: JSON.stringify({ text: question }),
+     signal: controller.signal
    })
    .then(response => {
-     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-     return response.json();
+     clearTimeout(timeoutId);
+     if (response.ok) return response.json();
+     throw new Error('RAG backend failed');
    })
    .then(data => {
      setMessages(prev => [...prev, { text: data.response, isUser: false }]);
+   })
+   .catch(error => {
+     console.log("Falling back to local API", error);
+     // Fall back to local implementation
+     return fetch('/api/ask', {
+       method: 'POST',
+       headers: {'Content-Type': 'application/json'},
+       body: JSON.stringify({ text: question }),
+     })
+     .then(response => {
+       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+       return response.json();
+     })
+     .then(data => {
+       setMessages(prev => [...prev, { text: data.response, isUser: false }]);
+     });
    })
    .catch(error => {
      console.error('Error submitting question:', error);
