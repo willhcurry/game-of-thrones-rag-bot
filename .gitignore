@@ -57,3 +57,4 @@ backend/got_env/
 venv/
 __pycache__/
 *.epub
+*.epub
