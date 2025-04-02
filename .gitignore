@@ -58,3 +58,4 @@ venv/
 __pycache__/
 *.epub
 *.epub
+gotbot/
