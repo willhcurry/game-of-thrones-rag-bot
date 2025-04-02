@@ -5,7 +5,7 @@ colorFrom: indigo
 colorTo: gray
 sdk: gradio
 sdk_version: 3.50.2
-app_file: app.py
+app_file: backend/app.py
 pinned: false
 ---
 
