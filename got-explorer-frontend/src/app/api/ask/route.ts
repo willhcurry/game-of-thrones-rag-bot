@@ -27,16 +27,19 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Add house styling based on the question
-    let house = "";
-    if (question.includes('stark')) house = "House Stark Knowledge";
-    else if (question.includes('lannister') || question.includes('tyrion') || question.includes('tywin') || question.includes('casterly')) house = "House Lannister Knowledge";
-    else if (question.includes('targaryen')) house = "House Targaryen Knowledge";
+    // Format the response with house prefix
+    let formattedResponse = response;
+    if (question.includes('stark')) {
+      formattedResponse = "From House Stark Knowledge:\n" + response;
+    } else if (question.includes('lannister') || question.includes('tyrion') || question.includes('tywin') || question.includes('casterly')) {
+      formattedResponse = "From House Lannister Knowledge:\n" + response;
+    } else if (question.includes('targaryen')) {
+      formattedResponse = "From House Targaryen Knowledge:\n" + response;
+    }
     
     return NextResponse.json({
       status: 'success',
-      response: response,
-      house: house
+      response: formattedResponse
     });
   } catch (error) {
     const errorMessage = error instanceof Error 
