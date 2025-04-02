@@ -13,3 +13,5 @@ beautifulsoup4
 PyMuPDF
 flask
 flask-cors
+gradio
+pydantic
