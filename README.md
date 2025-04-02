@@ -1,4 +1,17 @@
-# Game of Thrones Book Explorer
+---
+title: Game of Thrones RAG Bot
+emoji: 🐉
+colorFrom: indigo
+colorTo: gray
+sdk: gradio
+sdk_version: 3.50.2
+app_file: app.py
+pinned: false
+---
+
+# Game of Thrones Knowledge Bot
+
+A RAG-based chatbot that can answer questions about Game of Thrones.
 
 An AI-powered chatbot that lets you explore and discuss the Game of Thrones books. Ask questions about characters, events, and get answers with direct citations from the source material.
 
