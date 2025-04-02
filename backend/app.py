@@ -38,7 +38,7 @@ bot = GameOfThronesBot()
 
 # Initialize your chatbot
 embeddings = HuggingFaceEmbeddings()
-books_dir = "books" # Make sure to upload your books directory
+books_dir = "input" # Make sure to upload your books directory
 
 # Load vector store if it exists, otherwise create it
 vector_store_path = "faiss_index"
