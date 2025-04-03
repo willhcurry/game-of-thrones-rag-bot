@@ -10,6 +10,7 @@ from langchain.memory import ConversationBufferMemory
 from langchain.docstore.document import Document
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 # Print verbose debug info
 print(f"Starting application setup...")
@@ -105,7 +106,11 @@ qa_chain = ConversationalRetrievalChain.from_llm(
     verbose=True
 )
 
-# Endpoint for frontend
+# Define both GET and POST endpoints for /ask
+@app.get("/ask")
+async def ask_get():
+    return {"response": "API is working, please use POST method with JSON body"}
+
 @app.post("/ask")
 async def ask_endpoint(request: Request):
     try:
@@ -119,11 +124,6 @@ async def ask_endpoint(request: Request):
         print(f"API error: {str(e)}")
         return {"response": f"I encountered an error: {str(e)}"}
 
-# Add a GET endpoint for testing (this is just for diagnosis)
-@app.get("/ask")
-async def ask_get():
-    return {"status": "API is working, please use POST method with JSON body"}
-
 # Gradio interface
 def respond(message, history):
     try:
@@ -132,16 +132,16 @@ def respond(message, history):
     except Exception as e:
         return f"Error: {str(e)}"
 
+# Create Gradio interface
 demo = gr.ChatInterface(
     respond,
     title="Game of Thrones Knowledge Bot",
     description="Ask me anything about Game of Thrones!"
 )
 
-# Mount Gradio app
-gr.mount_gradio_app(app, demo, path="/")
+# THIS IS CRITICAL: Mount Gradio app as a subpath
+app = gr.mount_gradio_app(app, demo, path="/gradio")
 
-# This is critical - make sure your app is run this way
+# Start the server - THIS MUST BE THE ENTRY POINT
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=7860) 
