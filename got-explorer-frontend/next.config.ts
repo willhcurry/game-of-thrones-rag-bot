@@ -4,8 +4,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/rag/:path*',
-        destination: 'https://willhcurry-gotbot.hf.space/:path*',
+        source: '/api/rag/ask',
+        destination: 'https://willhcurry-gotbot.hf.space/ask',
       },
     ];
   },
