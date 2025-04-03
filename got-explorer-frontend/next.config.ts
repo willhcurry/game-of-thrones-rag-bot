@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/rag/ask',
-        destination: 'https://willhcurry-gotbot.hf.space/ask',
+        destination: 'https://willhcurry-gotbot.hf.space/api/predict',
       },
     ];
   },
