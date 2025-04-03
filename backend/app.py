@@ -111,12 +111,16 @@ async def ask_endpoint(request: Request):
     try:
         data = await request.json()
         question = data.get("text", "")
-        print(f"Received question: {question}")
+        print(f"Received question via API: {question}")
+        
+        # Use the same chain as the Gradio interface
         response = qa_chain({"question": question})
-        print(f"Generated response: {response}")
+        print(f"API response: {response}")
+        
+        # Return in the format expected by your frontend
         return {"response": response["answer"]}
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"API error: {str(e)}")
         return {"response": f"I encountered an error: {str(e)}"}
 
 # Gradio interface
