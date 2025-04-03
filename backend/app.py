@@ -11,10 +11,14 @@ from langchain.docstore.document import Document
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-# Print debug info
+# Print verbose debug info
 print(f"Starting application setup...")
 print(f"Current directory: {os.getcwd()}")
 print(f"Directory contents: {os.listdir('.')}")
+if os.path.exists("output"):
+    print(f"Output directory contents: {os.listdir('output')}")
+    if os.path.exists("output/rag_chunks"):
+        print(f"RAG chunks directory contents: {os.listdir('output/rag_chunks')}")
 
 # Initialize FastAPI
 app = FastAPI()
@@ -29,7 +33,7 @@ app.add_middleware(
 # Initialize embeddings
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-# Load RAG chunks from JSON files - now matches your specific format
+# Load RAG chunks from JSON files with extra error handling
 def load_json_chunks():
     documents = []
     rag_dir = "output/rag_chunks"
@@ -37,7 +41,12 @@ def load_json_chunks():
     if not os.path.exists(rag_dir):
         print(f"Directory not found: {rag_dir}")
         print(f"Available directories: {os.listdir('.')}")
-        return documents
+        # Try alternate location
+        rag_dir = "rag_chunks"
+        if not os.path.exists(rag_dir):
+            return documents
+    
+    print(f"Reading from {rag_dir}")
     
     for filename in os.listdir(rag_dir):
         if filename.endswith('.json'):
@@ -67,13 +76,13 @@ print("Loading documents from JSON files...")
 documents = load_json_chunks()
 
 if documents:
-    print("Creating vector store...")
+    print(f"Creating vector store with {len(documents)} documents...")
     vector_store = FAISS.from_documents(documents, embeddings)
     print("Vector store created successfully")
 else:
-    print("No documents loaded, creating mock vector store")
+    print("No documents loaded, creating mock vector store with SPECIFIC Red Wedding info")
     mock_texts = [
-        "The Red Wedding was a massacre at the wedding feast of Edmure Tully and Roslin Frey.",
+        "The Red Wedding was a massacre that took place during the War of the Five Kings. During the wedding feast of Edmure Tully and Roslin Frey at the Twins, the Lord of the Crossing, Walder Frey, violated guest right by slaughtering many of the attendees, including Robb Stark, his mother Catelyn, and many of their bannermen. This was done as revenge against Robb for breaking his vow to marry one of Frey's daughters.",
         "Jon Snow is the bastard son of Ned Stark who joins the Night's Watch.",
         "House Lannister is one of the Great Houses of Westeros, with Tywin Lannister as its head.",
         "Daenerys Targaryen is the daughter of King Aerys II Targaryen."
