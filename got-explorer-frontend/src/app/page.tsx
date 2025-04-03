@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ChatMessage from '@/components/ChatMessage';
 
 /**
@@ -28,6 +28,22 @@ export default function Home() {
  const [messages, setMessages] = useState<Array<{ text: string; isUser: boolean }>>([]);
  const [input, setInput] = useState('');
  const [isLoading, setIsLoading] = useState(false);
+
+ useEffect(() => {
+   // Debug test - direct call to Hugging Face
+   console.log("Testing direct connection to Hugging Face");
+   fetch('https://willhcurry-gotbot.hf.space/ask', {
+     method: 'POST',
+     headers: {'Content-Type': 'application/json'},
+     body: JSON.stringify({ text: "What is the Red Wedding?" })
+   })
+   .then(response => {
+     console.log("Response status:", response.status);
+     return response.json();
+   })
+   .then(data => console.log("Direct test response:", data))
+   .catch(error => console.error("Direct test error:", error));
+ }, []);
 
  /**
   * Handles form submission when a user sends a question.

@@ -119,6 +119,11 @@ async def ask_endpoint(request: Request):
         print(f"API error: {str(e)}")
         return {"response": f"I encountered an error: {str(e)}"}
 
+# Add a GET endpoint for testing (this is just for diagnosis)
+@app.get("/ask")
+async def ask_get():
+    return {"status": "API is working, please use POST method with JSON body"}
+
 # Gradio interface
 def respond(message, history):
     try:
