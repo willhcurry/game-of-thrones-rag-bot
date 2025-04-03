@@ -1,20 +1,17 @@
 import gradio as gr
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+import json
+import os
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.llms import HuggingFaceHub
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from langchain.docstore.document import Document
-import os
-import json
-import uvicorn
 
-# Create FastAPI app
+# Initialize FastAPI
 app = FastAPI()
-
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,10 +20,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize embeddings
+# Initialize RAG components
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-# Load RAG chunks and create vector store
+# Load documents from JSON files
 documents = []
 rag_dir = "output/rag_chunks"
 if os.path.exists(rag_dir):
@@ -59,29 +56,31 @@ qa_chain = ConversationalRetrievalChain.from_llm(
     memory=memory
 )
 
-# FastAPI endpoint
+# Define the FastAPI endpoint
 @app.post("/ask")
 async def ask_endpoint(request: Request):
     data = await request.json()
     question = data.get("text", "")
+    print(f"Received question: {question}")
     response = qa_chain({"question": question})
+    print(f"Generated response: {response}")
     return {"response": response["answer"]}
 
-# Gradio function
+# Gradio interface 
 def respond(message, history):
     response = qa_chain({"question": message})
     return response["answer"]
 
-# Create Gradio interface
 demo = gr.ChatInterface(
     respond,
     title="Game of Thrones Knowledge Bot",
     description="Ask me anything about Game of Thrones!"
 )
 
-# Mount Gradio app to FastAPI
+# Mount Gradio to FastAPI
 app = gr.mount_gradio_app(app, demo, path="/")
 
-# Start the server
+# Start server
 if __name__ == "__main__":
+    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=7860) 
