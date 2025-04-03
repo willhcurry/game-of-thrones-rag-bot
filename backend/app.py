@@ -1,24 +1,12 @@
 import gradio as gr
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-import json
 import os
+import json
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.llms import HuggingFaceHub
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from langchain.docstore.document import Document
-
-# Initialize FastAPI
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Initialize RAG components
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -39,16 +27,12 @@ if os.path.exists(rag_dir):
                     doc = Document(page_content=content, metadata=metadata)
                     documents.append(doc)
 
-# Create vector store
+# Create vector store and QA chain
 vector_store = FAISS.from_documents(documents, embeddings)
-
-# Initialize LLM
 llm = HuggingFaceHub(
     repo_id="HuggingFaceH4/zephyr-7b-beta",
     model_kwargs={"temperature": 0.7, "max_length": 512}
 )
-
-# Set up memory and QA chain
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 qa_chain = ConversationalRetrievalChain.from_llm(
     llm=llm,
@@ -56,31 +40,41 @@ qa_chain = ConversationalRetrievalChain.from_llm(
     memory=memory
 )
 
-# Define the FastAPI endpoint
-@app.post("/ask")
-async def ask_endpoint(request: Request):
-    data = await request.json()
-    question = data.get("text", "")
+# Create a direct API function
+def ask_question(question):
     print(f"Received question: {question}")
     response = qa_chain({"question": question})
     print(f"Generated response: {response}")
     return {"response": response["answer"]}
 
-# Gradio interface 
-def respond(message, history):
-    response = qa_chain({"question": message})
-    return response["answer"]
+# Gradio interface with the API function
+with gr.Blocks() as demo:
+    gr.Markdown("# Game of Thrones Knowledge Bot")
+    gr.Markdown("Ask me anything about Game of Thrones!")
+    
+    # Chat interface
+    chatbot = gr.Chatbot()
+    msg = gr.Textbox(label="Your question")
+    clear = gr.Button("Clear")
+    
+    def respond(message, chat_history):
+        answer = qa_chain({"question": message})["answer"]
+        chat_history.append((message, answer))
+        return "", chat_history
+    
+    msg.submit(respond, [msg, chatbot], [msg, chatbot])
+    clear.click(lambda: None, None, chatbot, queue=False)
+    
+    # Direct API endpoint
+    gr.Interface(
+        fn=ask_question,
+        inputs=gr.Textbox(label="Question"),
+        outputs=gr.JSON(),
+        title="API Endpoint",
+        description="Send POST requests to this endpoint",
+        allow_flagging="never"
+    )
 
-demo = gr.ChatInterface(
-    respond,
-    title="Game of Thrones Knowledge Bot",
-    description="Ask me anything about Game of Thrones!"
-)
-
-# Mount Gradio to FastAPI
-app = gr.mount_gradio_app(app, demo, path="/")
-
-# Start server
+# Launch the app
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=7860) 
+    demo.launch() 
