@@ -112,12 +112,8 @@ async def ask_endpoint(request: Request):
         data = await request.json()
         question = data.get("text", "")
         print(f"Received question via API: {question}")
-        
-        # Use the same chain as the Gradio interface
         response = qa_chain({"question": question})
         print(f"API response: {response}")
-        
-        # Return in the format expected by your frontend
         return {"response": response["answer"]}
     except Exception as e:
         print(f"API error: {str(e)}")
@@ -140,6 +136,7 @@ demo = gr.ChatInterface(
 # Mount Gradio app
 gr.mount_gradio_app(app, demo, path="/")
 
+# This is critical - make sure your app is run this way
 if __name__ == "__main__":
     import uvicorn
-    demo.launch() 
+    uvicorn.run(app, host="0.0.0.0", port=7860) 
