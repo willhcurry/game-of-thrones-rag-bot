@@ -1,4 +1,6 @@
 import gradio as gr
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.llms import HuggingFaceHub
@@ -7,6 +9,19 @@ from langchain.memory import ConversationBufferMemory
 from langchain.docstore.document import Document
 import os
 import json
+import uvicorn
+
+# Create FastAPI app
+app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize embeddings
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -44,6 +59,15 @@ qa_chain = ConversationalRetrievalChain.from_llm(
     memory=memory
 )
 
+# FastAPI endpoint
+@app.post("/ask")
+async def ask_endpoint(request: Request):
+    data = await request.json()
+    question = data.get("text", "")
+    response = qa_chain({"question": question})
+    return {"response": response["answer"]}
+
+# Gradio function
 def respond(message, history):
     response = qa_chain({"question": message})
     return response["answer"]
@@ -55,5 +79,9 @@ demo = gr.ChatInterface(
     description="Ask me anything about Game of Thrones!"
 )
 
+# Mount Gradio app to FastAPI
+app = gr.mount_gradio_app(app, demo, path="/")
+
+# Start the server
 if __name__ == "__main__":
-    demo.launch() 
+    uvicorn.run(app, host="0.0.0.0", port=7860) 
