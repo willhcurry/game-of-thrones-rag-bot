@@ -4,6 +4,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
+    console.log("Request received at /api/rag/ask:", body.text);
+    
     const response = await fetch('https://willhcurry-gotbot.hf.space/api/predict', {
       method: 'POST',
       headers: {
@@ -22,7 +24,12 @@ export async function POST(request: NextRequest) {
     }
     
     const data = await response.json();
-    return NextResponse.json(data);
+    console.log("Response from HF:", data);
+    const answer = data.data?.[0]?.response || "No response received";
+    return NextResponse.json({
+      status: 'success',
+      response: answer
+    });
   } catch (error) {
     console.error('Proxy error:', error);
     return NextResponse.json(
