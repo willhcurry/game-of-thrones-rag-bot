@@ -89,7 +89,10 @@ export default function Home() {
        
        if (ragResponse.ok) {
          const data = await ragResponse.json();
-         const botResponse = data.data?.[0]?.response || "No response received";
+         console.log("RAG response data:", data);
+         
+         // Get the response text from the correct path in the data
+         const botResponse = data.response || "No response received";
          setMessages(prev => [...prev, { text: botResponse, isUser: false }]);
          setIsLoading(false);
          setInput('');
