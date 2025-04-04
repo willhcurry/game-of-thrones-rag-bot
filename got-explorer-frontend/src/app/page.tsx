@@ -72,10 +72,12 @@ export default function Home() {
        const controller = new AbortController();
        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
        
-       const ragResponse = await fetch('/api/proxy-ask', {
+       const ragResponse = await fetch('/api/rag/ask', {
          method: 'POST',
          headers: {'Content-Type': 'application/json'},
-         body: JSON.stringify({ text: input }),
+         body: JSON.stringify({ 
+           data: [input]  // Format data as an array
+         }),
          signal: controller.signal
        });
        
@@ -143,10 +145,12 @@ export default function Home() {
    const controller = new AbortController();
    const timeoutId = setTimeout(() => controller.abort(), 5000);
    
-   fetch('/api/proxy-ask', {
+   fetch('/api/rag/ask', {
      method: 'POST',
      headers: {'Content-Type': 'application/json'},
-     body: JSON.stringify({ text: question }),
+     body: JSON.stringify({ 
+       data: [question]  // Format data as an array
+     }),
      signal: controller.signal
    })
    .then(response => {
