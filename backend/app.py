@@ -30,25 +30,19 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 
-# Initialize embeddings model for document vectorization
+print("Loading embeddings...")
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 def load_documents():
-    """
-    Load pre-processed Game of Thrones book chunks from JSON files.
-    
-    Each chunk contains content from the books along with metadata about
-    its source, chapter, and other contextual information.
-    
-    Returns:
-        list: A list of Document objects ready for vector embedding
-    """
+    print("Loading documents...")
     documents = []
     rag_dir = "output/rag_chunks"
     if os.path.exists(rag_dir):
+        print(f"Found rag_dir: {rag_dir}")
         for filename in os.listdir(rag_dir):
             if filename.endswith('.json'):
                 filepath = os.path.join(rag_dir, filename)
+                print(f"Processing file: {filepath}")
                 with open(filepath, 'r') as f:
                     data = json.load(f)
                     chunks = data.get('chunks', [])
@@ -57,11 +51,13 @@ def load_documents():
                         metadata = chunk.get('metadata', {})
                         doc = Document(page_content=content, metadata=metadata)
                         documents.append(doc)
+    print(f"Loaded {len(documents)} documents")
     return documents
 
-# Load document chunks and create vector store for similarity search
+print("Creating vector store...")
 documents = load_documents()
 vector_store = FAISS.from_documents(documents, embeddings)
+print("Vector store created successfully")
 
 # Initialize language model for text generation
 # Using a smaller model to ensure it fits within memory constraints
@@ -84,110 +80,34 @@ qa_chain = ConversationalRetrievalChain.from_llm(
     memory=memory
 )
 
-def api_ask(question):
-    """
-    Process a question through the RAG system and return a formatted response.
+def answer_question(question):
+    """Simple question answering function"""
+    print(f"Received question: '{question}'")
     
-    This function handles both direct API calls and Gradio interface usage.
+    if not question or question.strip() == "":
+        return "I didn't receive a question. Please try again."
     
-    Args:
-        question: Can be a string or the first item in a list
-        
-    Returns:
-        dict: Formatted response with answer
-    """
-    try:
-        # Print what we received for debugging
-        print(f"Received raw input: {question} (type: {type(question)})")
-        
-        # Extract the actual question text based on input type
-        actual_question = None
-        
-        if isinstance(question, str):
-            actual_question = question
-        elif isinstance(question, list) and len(question) > 0:
-            actual_question = question[0]
-        
-        print(f"Extracted question: {actual_question}")
-            
-        if not actual_question:
-            return {"response": "I didn't receive a question. Please try again."}
-        
-        # Get documents directly
-        docs = vector_store.similarity_search(actual_question, k=3)
-        
-        # Format response from retrieved documents
-        response_text = f"Here's what I found about '{actual_question}':\n\n"
-        for i, doc in enumerate(docs, 1):
-            source = doc.metadata.get('book_title', 'Game of Thrones')
-            chapter = doc.metadata.get('chapter', 'Unknown chapter')
-            response_text += f"From {source} ({chapter}):\n{doc.page_content}\n\n"
-            
-        return {"response": response_text}
-            
-    except Exception as e:
-        print(f"Error processing question: {str(e)}")
-        return {"error": str(e)}
+    # Get relevant documents
+    docs = vector_store.similarity_search(question, k=3)
+    
+    # Format response
+    response = f"Here's what I found about '{question}':\n\n"
+    for i, doc in enumerate(docs, 1):
+        source = doc.metadata.get('book_title', 'Game of Thrones')
+        chapter = doc.metadata.get('chapter', 'Unknown chapter')
+        response += f"From {source} ({chapter}):\n{doc.page_content}\n\n"
+    
+    return response
 
-def chat_interface(message, history):
-    """
-    Process a message from the chat interface.
-    
-    This function is used by the Gradio chat interface to handle
-    user messages and generate responses.
-    
-    Args:
-        message (str): The user's message
-        history (list): The conversation history
-        
-    Returns:
-        str: The generated response
-    """
-    response = qa_chain({"question": message})
-    return response["answer"]
+# Create Gradio Interface
+demo = gr.Interface(
+    fn=answer_question,
+    inputs=gr.Textbox(lines=2, placeholder="Ask about Game of Thrones..."),
+    outputs="text",
+    title="Game of Thrones Knowledge Bot",
+    description="Ask me anything about the Game of Thrones books!"
+)
 
-# Set up Gradio app with both chat interface and API
-with gr.Blocks() as demo:
-    # Chat interface tab
-    with gr.Tab("Chat"):
-        gr.ChatInterface(
-            chat_interface,
-            title="Game of Thrones Knowledge Bot",
-            description="Ask me anything about Game of Thrones!"
-        )
-    
-    # API tab for documentation and testing
-    with gr.Tab("API"):
-        gr.Markdown("""
-        ## API Endpoint
-        
-        You can access this bot programmatically using the following endpoint:
-        
-        ```
-        POST https://willhcurry-gotbot.hf.space/api/predict
-        
-        {
-          "data": ["Your question here"]
-        }
-        ```
-        
-        The response will be in this format:
-        ```
-        {
-          "data": [{"response": "Answer to your question"}]
-        }
-        ```
-        """)
-        
-        gr.Interface(
-            fn=api_ask,
-            inputs=gr.Textbox(label="Test question"),
-            outputs=gr.JSON(label="Response"),
-            title="API Tester",
-            description="Test the API directly"
-        )
-
-# Launch the app when run directly
+# Launch the app
 if __name__ == "__main__":
-    # Start the Gradio interface on default port 7860
     demo.launch() 

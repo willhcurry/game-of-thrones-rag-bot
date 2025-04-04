@@ -152,17 +152,14 @@ export default function Home() {
    const controller = new AbortController();
    const timeoutId = setTimeout(() => controller.abort(), 5000);
    
-   fetch('/api/rag/ask', {
+   fetch('https://willhcurry-gotbot.hf.space/api/predict', {
      method: 'POST',
      headers: {
        'Content-Type': 'application/json',
-       // Uncomment the line below if you decide to use the token
-       // 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_HF_TOKEN}`
      },
-     body: JSON.stringify({ 
-       data: [question]  // Format data as an array
-     }),
-     signal: controller.signal
+     body: JSON.stringify({
+       data: [question]
+     })
    })
    .then(response => {
      clearTimeout(timeoutId);
