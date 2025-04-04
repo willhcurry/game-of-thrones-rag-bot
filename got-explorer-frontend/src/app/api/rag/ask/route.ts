@@ -3,47 +3,31 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log("Request body received:", body);
-    
-    // Check different possible formats
-    const question = body.text || body.question || body.data?.[0] || "";
-    console.log("Extracted question:", question);
-    
-    console.log("Sending question to HF:", question);
+    console.log("Request to HF:", body);
     
     const response = await fetch('https://willhcurry-gotbot.hf.space/api/predict', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ 
-        data: [question]
-      })
+      body: JSON.stringify({ data: [body.text || ""] })
     });
     
-    console.log("Sending request to HF:", JSON.stringify({ data: [question] }));
-    
-    if (!response.ok) {
-      console.error('HF API error:', response.status, await response.text());
-      return NextResponse.json(
-        { error: 'Failed to fetch from Hugging Face' }, 
-        { status: response.status }
-      );
-    }
-    
     const data = await response.json();
-    console.log("Raw response:", data);
+    console.log("Response from HF:", data);
     
-    let answer;
-    if (data.error) {
-      answer = `Error: ${data.error}`;
-    } else if (data.data && Array.isArray(data.data) && data.data[0]) {
-      answer = data.data[0].response || data.data[0];
-    } else {
-      answer = "Received unexpected response format from knowledge base";
+    // Check for errors in the response
+    if (data?.data?.[0]?.error) {
+      console.error("Error from Hugging Face:", data.data[0].error);
+      return NextResponse.json({
+        status: 'success',
+        response: "I'm having trouble connecting to my knowledge base. Please try a different question or try again later."
+      });
     }
     
-    console.log("Extracted answer:", answer);
+    // Extract response or use fallback
+    const answer = data?.data?.[0]?.response || 
+                   "I couldn't find information about that in the Game of Thrones books.";
     
     return NextResponse.json({
       status: 'success',
@@ -51,9 +35,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Proxy error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' }, 
-      { status: 500 }
-    );
+    return NextResponse.json({
+      status: 'success',
+      response: "I'm having trouble reaching my knowledge base. Please try again later."
+    });
   }
 }
