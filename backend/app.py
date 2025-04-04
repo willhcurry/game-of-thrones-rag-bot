@@ -4,6 +4,9 @@ import json
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.docstore.document import Document
+from langchain.llms import HuggingFacePipeline
+from langchain.chains import RetrievalQA
+from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 
 # Print debug info
 print("Starting application setup...")
@@ -34,19 +37,43 @@ print(f"Loaded {len(documents)} documents")
 vector_store = FAISS.from_documents(documents, embeddings)
 print("Vector store created")
 
-# Simple answer function that uses vector store but no LLM
+# Initialize a local model (distilgpt2 is small enough to fit in memory)
+print("Loading local model...")
+model_name = "distilgpt2"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
+pipe = pipeline(
+    "text-generation",
+    model=model,
+    tokenizer=tokenizer,
+    max_new_tokens=512
+)
+local_llm = HuggingFacePipeline(pipeline=pipe)
+print("Local model loaded")
+
+# Create a QA chain
+qa_chain = RetrievalQA.from_chain_type(
+    llm=local_llm,
+    chain_type="stuff",
+    retriever=vector_store.as_retriever(search_kwargs={"k": 3})
+)
+print("QA chain created")
+
+# Answer function that uses the QA chain
 def answer_question(question):
-    docs = vector_store.similarity_search(question, k=2)
-    response = "\n\n".join([doc.page_content for doc in docs])
-    return {"response": response}
+    try:
+        response = qa_chain.run(question)
+        return response
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 # Create Gradio interface
 demo = gr.Interface(
     fn=answer_question,
     inputs=gr.Textbox(label="Question"),
     outputs=gr.Textbox(label="Answer"),
-    title="Game of Thrones Knowledge Bot (No LLM)",
-    description="Simple retrieval without using an LLM"
+    title="Game of Thrones Knowledge Bot",
+    description="Ask me anything about Game of Thrones!"
 )
 
 # Launch
