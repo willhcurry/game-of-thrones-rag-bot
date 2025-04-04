@@ -3,7 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const question = body.text || "";
+    console.log("Request body received:", body);
+    
+    // Check different possible formats
+    const question = body.text || body.question || body.data?.[0] || "";
+    console.log("Extracted question:", question);
     
     console.log("Sending question to HF:", question);
     
