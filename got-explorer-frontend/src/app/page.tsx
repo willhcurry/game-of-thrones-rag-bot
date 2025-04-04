@@ -228,52 +228,55 @@ export default function Home() {
  };
 
  return (
-   <main className="flex min-h-screen flex-col bg-got-dark">
+   <main className="flex min-h-screen flex-col bg-transparent">
      <div className="flex-1 p-4 max-w-4xl mx-auto w-full">
        {/* Header */}
-       <div className="mb-4">
-         <h1 className="text-4xl font-bold text-got-text mb-2">
+       <div className="mb-4 text-center">
+         <h1 className="text-5xl font-bold text-got-text mb-2 text-red-600 drop-shadow-lg">
            Game of Thrones Explorer
          </h1>
-         <p className="text-got-light">Ask anything about the books...</p>
+         <p className="text-got-light text-lg">Ask anything about the books...</p>
        </div>
        
-       {/* Message history */}
-       <div className="space-y-4 mb-4">
-         {messages.map((msg, idx) => (
-           <ChatMessage key={idx} message={msg.text} isUser={msg.isUser} />
-         ))}
-         
-         {/* Loading indicator */}
-         {isLoading && (
-           <div className="flex justify-start">
-             <div className="bg-got-secondary text-got-text p-4 rounded-lg">
-               <div className="flex items-center space-x-2">
-                 <span className="text-sm">Thinking...</span>
+       {/* Chat container with blur effect */}
+       <div className="chat-container p-6 mb-20">
+         {/* Message history */}
+         <div className="space-y-4 mb-4">
+           {messages.map((msg, idx) => (
+             <ChatMessage key={idx} message={msg.text} isUser={msg.isUser} />
+           ))}
+           
+           {/* Loading indicator */}
+           {isLoading && (
+             <div className="flex justify-start">
+               <div className="bg-got-secondary text-got-text p-4 rounded-lg">
+                 <div className="flex items-center space-x-2">
+                   <span className="text-sm">Thinking...</span>
+                 </div>
                </div>
+             </div>
+           )}
+         </div>
+
+         {/* Suggested questions section */}
+         {!isLoading && messages.length > 0 && messages[messages.length-1]?.isUser === false && (
+           <div className="mt-4">
+             <div className="text-sm text-gray-400 mb-2">You might also want to know:</div>
+             <div className="flex flex-wrap gap-2">
+               {getRelatedQuestions(messages[messages.length-2]?.text || '').map((q, i) => (
+                 <button 
+                   key={i} 
+                   className="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm py-1 px-3 rounded-full"
+                   onClick={() => handleSuggestedQuestion(q)}
+                   aria-label={`Ask about ${q}`}
+                 >
+                   {q}
+                 </button>
+               ))}
              </div>
            </div>
          )}
        </div>
-
-       {/* Suggested questions section - only shown after receiving a response */}
-       {!isLoading && messages.length > 0 && messages[messages.length-1]?.isUser === false && (
-         <div className="mt-4 mb-20">
-           <div className="text-sm text-gray-400 mb-2">You might also want to know:</div>
-           <div className="flex flex-wrap gap-2">
-             {getRelatedQuestions(messages[messages.length-2]?.text || '').map((q, i) => (
-               <button 
-                 key={i} 
-                 className="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm py-1 px-3 rounded-full"
-                 onClick={() => handleSuggestedQuestion(q)}
-                 aria-label={`Ask about ${q}`}
-               >
-                 {q}
-               </button>
-             ))}
-           </div>
-         </div>
-       )}
 
        {/* Input form - fixed at bottom */}
        <form onSubmit={handleSubmit} className="fixed bottom-4 left-4 right-4 max-w-4xl mx-auto">
@@ -290,7 +293,7 @@ export default function Home() {
            <button 
              type="submit"
              disabled={isLoading}
-             className="px-6 py-4 bg-got-primary text-got-text rounded-lg hover:bg-red-800 transition-colors disabled:opacity-50"
+             className="px-6 py-4 bg-red-800 text-got-text rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
              aria-label="Send question"
            >
              Send

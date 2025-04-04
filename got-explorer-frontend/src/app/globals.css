@@ -3,21 +3,27 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
+  background-color: #0a0a0a;
+  background-image: url('/images/got-background.jpg');
+  background-size: cover;
+  background-position: center center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+.chat-container {
+  backdrop-filter: blur(8px);
+  background-color: rgba(10, 10, 10, 0.75);
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes pulse {
