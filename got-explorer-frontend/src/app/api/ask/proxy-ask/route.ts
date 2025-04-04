@@ -4,13 +4,13 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    const response = await fetch('https://willhcurry-gotbot.hf.space/ask', {
+    const response = await fetch('https://willhcurry-gotbot.hf.space/api/predict', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.HF_TOKEN}`
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ data: [body.text] })
     });
     
     if (!response.ok) {

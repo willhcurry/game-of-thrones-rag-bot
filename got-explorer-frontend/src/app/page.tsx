@@ -89,7 +89,7 @@ export default function Home() {
        
        if (ragResponse.ok) {
          const data = await ragResponse.json();
-         const botResponse = data.response || data.answer || "No response received";
+         const botResponse = data.data?.[0]?.response || "No response received";
          setMessages(prev => [...prev, { text: botResponse, isUser: false }]);
          setIsLoading(false);
          setInput('');
@@ -167,7 +167,7 @@ export default function Home() {
      throw new Error('RAG backend failed');
    })
    .then(data => {
-     const botResponse = data.response || data.answer || "No response received";
+     const botResponse = data.data?.[0]?.response || "No response received";
      setMessages(prev => [...prev, { text: botResponse, isUser: false }]);
    })
    .catch(error => {
