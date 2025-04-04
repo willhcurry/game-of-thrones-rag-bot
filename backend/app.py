@@ -4,21 +4,11 @@ import json
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.docstore.document import Document
-from langchain.llms import HuggingFacePipeline
-from langchain.chains import ConversationalRetrievalChain
-from langchain.memory import ConversationBufferMemory
-from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
-
-# Print debug info
-print("Starting application setup...")
-print(f"Current directory: {os.getcwd()}")
 
 # Initialize embeddings
-print("Initializing embeddings...")
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # Load documents and create vector store
-print("Loading documents...")
 documents = []
 rag_dir = "output/rag_chunks"
 if os.path.exists(rag_dir):
@@ -34,46 +24,34 @@ if os.path.exists(rag_dir):
                     doc = Document(page_content=content, metadata=metadata)
                     documents.append(doc)
 
-print(f"Loaded {len(documents)} documents")
 vector_store = FAISS.from_documents(documents, embeddings)
-print("Vector store created")
 
-# Initialize a local model (distilgpt2 is small enough to fit in memory)
-print("Loading local model...")
-model_name = "distilgpt2"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name)
-pipe = pipeline(
-    "text-generation",
-    model=model,
-    tokenizer=tokenizer,
-    max_new_tokens=512
-)
-local_llm = HuggingFacePipeline(pipeline=pipe)
-print("Local model loaded")
-
-# Set up memory and QA chain
-memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-qa_chain = ConversationalRetrievalChain.from_llm(
-    llm=local_llm,
-    retriever=vector_store.as_retriever(search_kwargs={"k": 4}),
-    memory=memory
-)
-
-# Define API function
-def api_ask(question):
+# Simple retrieval function without LLM
+def retrieve_answer(question):
     try:
-        response = qa_chain({"question": question})
-        return {"response": response["answer"]}
+        # Get relevant documents
+        docs = vector_store.similarity_search(question, k=3)
+        
+        # Format a response
+        response = f"Here's what I found about '{question}':\n\n"
+        for i, doc in enumerate(docs, 1):
+            response += f"Source {i}: {doc.page_content}\n\n"
+            
+        return {"response": response}
     except Exception as e:
         return {"error": str(e)}
 
-# Create chat interface
+# Chat interface function
 def chat_interface(message, history):
-    response = qa_chain({"question": message})
-    return response["answer"]
+    result = retrieve_answer(message)
+    return result.get("response", f"Error: {result.get('error', 'Unknown error')}")
 
-# Set up Gradio app with both chat interface and API
+# API function - formatted for Gradio
+def api_ask(question):
+    result = retrieve_answer(question)
+    return result
+
+# Set up Gradio app
 with gr.Blocks() as demo:
     # Chat interface tab
     with gr.Tab("Chat"):
@@ -116,5 +94,4 @@ with gr.Blocks() as demo:
 
 # Launch the app
 if __name__ == "__main__":
-    print("Launching Gradio interface...")
     demo.launch() 
