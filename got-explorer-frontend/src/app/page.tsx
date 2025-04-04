@@ -228,18 +228,45 @@ export default function Home() {
  };
 
  return (
-   <main className="flex min-h-screen flex-col bg-transparent">
+   <main className="flex min-h-screen flex-col bg-black text-white">
      <div className="flex-1 p-4 max-w-4xl mx-auto w-full">
-       {/* Header */}
-       <div className="mb-4 text-center">
-         <h1 className="text-5xl font-bold text-got-text mb-2 text-red-600 drop-shadow-lg">
+       {/* Header with Game of Thrones-inspired styling */}
+       <div className="mb-8 text-center">
+         <h1 className="text-5xl font-bold text-red-600 mb-2">
            Game of Thrones Explorer
          </h1>
-         <p className="text-got-light text-lg">Ask anything about the books...</p>
+         <p className="text-amber-100">Ask anything about the books...</p>
        </div>
        
-       {/* Chat container with blur effect */}
-       <div className="chat-container p-6 mb-20">
+       {/* Chat container with visible border and theme-appropriate styling */}
+       <div className="bg-gray-900/80 border border-gray-700 rounded-lg p-6 mb-20 min-h-[400px] shadow-lg">
+         {/* Empty state message if no messages */}
+         {messages.length === 0 && (
+           <div className="text-center text-gray-400 py-10">
+             <p className="mb-2 text-lg">Ask a question about Game of Thrones to get started</p>
+             <div className="flex flex-wrap justify-center gap-2 mt-4">
+               <button 
+                 className="bg-gray-800 hover:bg-gray-700 text-amber-100 text-sm py-2 px-4 rounded-lg"
+                 onClick={() => handleSuggestedQuestion("Who is Jon Snow?")}
+               >
+                 Who is Jon Snow?
+               </button>
+               <button 
+                 className="bg-gray-800 hover:bg-gray-700 text-amber-100 text-sm py-2 px-4 rounded-lg"
+                 onClick={() => handleSuggestedQuestion("What happened at the Red Wedding?")}
+               >
+                 What happened at the Red Wedding?
+               </button>
+               <button 
+                 className="bg-gray-800 hover:bg-gray-700 text-amber-100 text-sm py-2 px-4 rounded-lg"
+                 onClick={() => handleSuggestedQuestion("Tell me about House Stark")}
+               >
+                 Tell me about House Stark
+               </button>
+             </div>
+           </div>
+         )}
+         
          {/* Message history */}
          <div className="space-y-4 mb-4">
            {messages.map((msg, idx) => (
@@ -249,24 +276,24 @@ export default function Home() {
            {/* Loading indicator */}
            {isLoading && (
              <div className="flex justify-start">
-               <div className="bg-got-secondary text-got-text p-4 rounded-lg">
+               <div className="bg-gray-800 text-amber-100 p-4 rounded-lg">
                  <div className="flex items-center space-x-2">
-                   <span className="text-sm">Thinking...</span>
+                   <span className="text-sm">The Maester is consulting the archives...</span>
                  </div>
                </div>
              </div>
            )}
          </div>
 
-         {/* Suggested questions section */}
+         {/* Suggested questions section - only shown after receiving a response */}
          {!isLoading && messages.length > 0 && messages[messages.length-1]?.isUser === false && (
-           <div className="mt-4">
-             <div className="text-sm text-gray-400 mb-2">You might also want to know:</div>
+           <div className="mt-6">
+             <div className="text-sm text-amber-200 mb-2">You might also want to know:</div>
              <div className="flex flex-wrap gap-2">
                {getRelatedQuestions(messages[messages.length-2]?.text || '').map((q, i) => (
                  <button 
                    key={i} 
-                   className="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm py-1 px-3 rounded-full"
+                   className="bg-gray-800 hover:bg-gray-700 text-amber-100 text-sm py-1 px-3 rounded-full"
                    onClick={() => handleSuggestedQuestion(q)}
                    aria-label={`Ask about ${q}`}
                  >
@@ -286,14 +313,14 @@ export default function Home() {
              value={input}
              onChange={(e) => setInput(e.target.value)}
              disabled={isLoading}
-             className="flex-1 p-4 rounded-lg bg-gray-800 text-got-text focus:outline-none focus:ring-2 focus:ring-got-primary disabled:opacity-50"
+             className="flex-1 p-4 rounded-lg bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
              placeholder="Ask about Game of Thrones..."
              aria-label="Your question about Game of Thrones"
            />
            <button 
              type="submit"
              disabled={isLoading}
-             className="px-6 py-4 bg-red-800 text-got-text rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+             className="px-6 py-4 bg-red-700 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
              aria-label="Send question"
            >
              Send
