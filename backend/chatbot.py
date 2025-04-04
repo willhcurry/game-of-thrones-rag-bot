@@ -1,154 +1,182 @@
 """
-Game of Thrones Knowledge Bot - Memory Optimized Version
+Game of Thrones Chatbot - Core RAG Implementation
 
-This module implements a Retrieval Augmented Generation (RAG) system for
-answering questions about the Game of Thrones book series. It uses:
-- Vector-based similarity search with HuggingFace embeddings
-- Chroma vector database for storing and querying content
-- Pre-processed text chunks from the books with metadata
+This module implements the core Retrieval Augmented Generation (RAG) system 
+for the Game of Thrones knowledge bot. It provides the fundamental components
+needed to:
+1. Process user queries about Game of Thrones
+2. Retrieve relevant context from the book corpus
+3. Generate accurate, book-based responses
+4. Maintain conversation context
 
-The bot connects the frontend interface to the knowledge base,
-providing contextually relevant passages from the books in response
-to user questions without requiring a generative AI model.
+The chatbot uses LangChain components to implement a production-ready RAG system
+with vector search capabilities.
+
+Classes:
+    GameOfThronesBot: Main chatbot implementation with RAG capabilities
+
+Usage:
+    from chatbot import GameOfThronesBot
+    
+    bot = GameOfThronesBot()
+    response = bot.ask("Who is Jon Snow?")
 """
 
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
-import json
 import os
-import gc
+import json
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import FAISS
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.llms import HuggingFaceHub
+from langchain.chains import ConversationalRetrievalChain
+from langchain.document_loaders.text import TextLoader
+from langchain.memory import ConversationBufferMemory
+from langchain.docstore.document import Document
+from typing import List, Dict, Optional, Any, Union
 
 class GameOfThronesBot:
     """
-    A retrieval-based question answering system for Game of Thrones content.
+    A retrieval-augmented chatbot specializing in Game of Thrones knowledge.
     
-    This class loads pre-processed book chunks, creates embeddings, and 
-    performs similarity searches to answer questions about the Game of Thrones
-    universe based on content from the original books.
+    This class manages the complete RAG pipeline:
+    1. Loading and managing document embeddings
+    2. Storing and retrieving vectors efficiently
+    3. Maintaining conversation context
+    4. Generating contextually relevant responses using an LLM
     
     Attributes:
-        rag_dir (str): Directory containing RAG chunks in JSON format
-        chunks (list): Loaded content chunks with metadata
-        vectorstore (Chroma): Vector database containing embedded chunks
+        embeddings: The embedding model used for text vectorization
+        vector_store: FAISS vector database for similarity search
+        memory: Conversation memory buffer for context retention
+        qa_chain: The retrieval and generation chain
     """
     
-    def __init__(self):
-        """Initialize with minimal memory footprint"""
-        print("Initializing Game of Thrones Knowledge Base (memory-optimized)...")
-        self.rag_dir = os.path.join("..", "output", "rag_chunks")
-        self.chunks = None
-        self.vectorstore = None
-        self.embeddings = None
-        # Don't load anything in constructor - lazy load on first query
-    
-    def _ensure_initialized(self):
-        """Lazy initialization of resources when needed"""
-        if self.vectorstore is None:
-            self.chunks = self.load_rag_chunks()
-            self.vectorstore = self.create_vectorstore()
-    
-    def load_rag_chunks(self):
-        """Load minimal chunks to stay within memory constraints"""
-        all_chunks = []
-        max_chunks = 100  # Reduced from 200 to 100
-        chunks_per_book = 20  # Reduced from 40 to 20
+    def __init__(
+        self, 
+        vector_store_path: str = "faiss_index",
+        books_dir: str = "input",
+        rag_chunks_dir: str = "output/rag_chunks",
+        model_name: str = "HuggingFaceH4/zephyr-7b-beta",
+    ):
+        """
+        Initialize the Game of Thrones chatbot.
         
-        # Create output/rag_chunks directory if it doesn't exist (for development)
-        os.makedirs(os.path.join("..", "output", "rag_chunks"), exist_ok=True)
+        Args:
+            vector_store_path: Path to store/load FAISS index
+            books_dir: Directory containing book text files
+            rag_chunks_dir: Directory containing pre-processed RAG chunks
+            model_name: Name of the HuggingFace model to use
+        """
+        self.embeddings = HuggingFaceEmbeddings()
         
-        try:
-            # List the directory contents
-            files = os.listdir(self.rag_dir)
-            if not files:
-                # Fallback data if no files available
-                return [
-                    {"content": "House Stark rules the North from their seat at Winterfell.", 
-                     "metadata": {"book_title": "A Game of Thrones"}}
-                ]
+        # Try to load existing vector store or create a new one
+        if os.path.exists(vector_store_path):
+            self.vector_store = FAISS.load_local(vector_store_path, self.embeddings)
+        else:
+            # Try to load from pre-processed chunks first
+            documents = self._load_rag_chunks(rag_chunks_dir)
+            
+            # If no chunks available, process raw book files
+            if not documents:
+                documents = self._load_book_files(books_dir)
                 
-            for filename in files:
-                if filename.endswith('_rag.json'):
-                    with open(os.path.join(self.rag_dir, filename), 'r') as f:
-                        data = json.load(f)
-                        # Load smaller number of chunks
-                        book_chunks = data['chunks'][:chunks_per_book]
-                        all_chunks.extend(book_chunks)
-                        
-                        if len(all_chunks) >= max_chunks:
-                            break
-            
-            print(f"Loaded {len(all_chunks)} chunks (memory-optimized)")
-            return all_chunks
-        except Exception as e:
-            print(f"Error loading chunks: {str(e)}")
-            # Return minimal fallback data
-            return [
-                {"content": "House Stark rules the North from their seat at Winterfell.", 
-                 "metadata": {"book_title": "A Game of Thrones"}}
-            ]
-    
-    def create_vectorstore(self):
-        """Create vector store with minimal memory usage"""
-        try:
-            # Initialize the embedding model only when needed
-            self.embeddings = HuggingFaceEmbeddings(
-                model_name="paraphrase-MiniLM-L3-v2",
-                model_kwargs={'device': 'cpu'},
-                encode_kwargs={'batch_size': 2}  # Reduced batch size further
-            )
-            
-            texts = [chunk['content'] for chunk in self.chunks]
-            metadatas = [chunk['metadata'] for chunk in self.chunks]
-            
-            # Create vectorstore with smaller collection name
-            vectorstore = Chroma.from_texts(
-                texts=texts,
-                embedding=self.embeddings,
-                metadatas=metadatas,
-                persist_directory="./vectorstore"
-            )
-            
-            # Force garbage collection after creating vector store
-            gc.collect()
-            
-            return vectorstore
-        except Exception as e:
-            print(f"Error creating vectorstore: {str(e)}")
-            return None
-    
-    def ask(self, question: str):
-        """Process question with memory optimization"""
-        try:
-            # Ensure resources are initialized
-            self._ensure_initialized()
-            
-            if self.vectorstore is None:
-                return "I'm having trouble accessing my knowledge base at the moment."
-            
-            # Reduce k from 2 to 1 to get fewer results
-            docs = self.vectorstore.similarity_search(question, k=1)
-            
-            if docs:
-                sources = set()
-                content = []
-                
-                for doc in docs:
-                    snippet = doc.page_content
-                    source = f"{doc.metadata['book_title']}"
-                    sources.add(source)
-                    content.append({"source": source, "content": snippet})
-                
-                # Build a more concise response
-                response = "Here's what I found:\n\n"
-                for item in content:
-                    response += f"From {item['source']}:\n{item['content']}\n\n"
-                
-                # Force garbage collection after query
-                gc.collect()
-                
-                return response
+            if documents:
+                self.vector_store = FAISS.from_documents(documents, self.embeddings)
+                # Save for future use
+                self.vector_store.save_local(vector_store_path)
             else:
-                return "I couldn't find any relevant information about that."
+                raise ValueError("No documents found to create vector store")
+        
+        # Initialize LLM
+        self.llm = HuggingFaceHub(
+            repo_id=model_name,
+            model_kwargs={"temperature": 0.7, "max_length": 512}
+        )
+        
+        # Set up memory and conversation chain
+        self.memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+        self.qa_chain = ConversationalRetrievalChain.from_llm(
+            llm=self.llm,
+            retriever=self.vector_store.as_retriever(search_kwargs={"k": 4}),
+            memory=self.memory,
+        )
+    
+    def _load_rag_chunks(self, rag_chunks_dir: str) -> List[Document]:
+        """
+        Load pre-processed RAG chunks from JSON files.
+        
+        Args:
+            rag_chunks_dir: Directory containing RAG chunk JSON files
+            
+        Returns:
+            List of Document objects ready for vector embedding
+        """
+        documents = []
+        if os.path.exists(rag_chunks_dir):
+            for filename in os.listdir(rag_chunks_dir):
+                if filename.endswith('.json'):
+                    filepath = os.path.join(rag_chunks_dir, filename)
+                    with open(filepath, 'r') as f:
+                        data = json.load(f)
+                        chunks = data.get('chunks', [])
+                        for chunk in chunks:
+                            content = chunk.get('content', '')
+                            metadata = chunk.get('metadata', {})
+                            doc = Document(page_content=content, metadata=metadata)
+                            documents.append(doc)
+        return documents
+    
+    def _load_book_files(self, books_dir: str) -> List[Document]:
+        """
+        Load and process raw book text files.
+        
+        Args:
+            books_dir: Directory containing book text files
+            
+        Returns:
+            List of Document objects ready for vector embedding
+        """
+        documents = []
+        if os.path.exists(books_dir):
+            for filename in os.listdir(books_dir):
+                if filename.endswith('.txt'):
+                    loader = TextLoader(os.path.join(books_dir, filename))
+                    documents.extend(loader.load())
+            
+            # Split into chunks
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+            documents = text_splitter.split_documents(documents)
+        return documents
+    
+    def ask(self, question: str) -> str:
+        """
+        Process a user question and generate a response using RAG.
+        
+        This method:
+        1. Retrieves relevant context from the vector database
+        2. Passes the context and question to the language model
+        3. Returns the generated response
+        
+        Args:
+            question: The user's question about Game of Thrones
+            
+        Returns:
+            Generated response based on book knowledge
+        """
+        if not question or question.strip() == "":
+            return "Please ask a question about Game of Thrones."
+        
+        try:
+            # Process through the QA chain
+            response = self.qa_chain({"question": question})
+            return response["answer"]
         except Exception as e:
-            print(f"Error in ask: {str(e)}")
-            return "I encountered an error while searching for information."
+            return f"I'm sorry, I encountered an error: {str(e)}"
+    
+    def reset_conversation(self) -> None:
+        """
+        Reset the conversation history.
+        
+        This clears the memory buffer, starting a fresh conversation context.
+        """
+        self.memory.clear()

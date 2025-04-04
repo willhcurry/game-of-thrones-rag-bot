@@ -1,63 +1,129 @@
+"""
+Game of Thrones Knowledge Bot - Server Application
+
+This module implements a Gradio web interface and API for the Game of Thrones
+RAG (Retrieval Augmented Generation) chatbot. It loads pre-processed book 
+chunks, creates a vector store for semantic search, and provides both a 
+user-friendly chat interface and a programmatic API.
+
+The application is designed to run on Hugging Face Spaces with the following
+architecture:
+- Embedding model: sentence-transformers/all-MiniLM-L6-v2
+- Vector database: FAISS for efficient similarity search
+- Language model: Local transformer-based model for text generation
+- Frontend: Gradio for web interface with chat capabilities
+- API: Accessible endpoint for frontend integration
+
+Usage:
+    Deploy directly to Hugging Face Spaces or run locally with:
+    $ python app.py
+"""
+
 import gradio as gr
 import os
 import json
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.docstore.document import Document
+from langchain.llms import HuggingFacePipeline
+from langchain.chains import ConversationalRetrievalChain
+from langchain.memory import ConversationBufferMemory
+from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 
-# Initialize embeddings
+# Initialize embeddings model for document vectorization
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-# Load documents and create vector store
-documents = []
-rag_dir = "output/rag_chunks"
-if os.path.exists(rag_dir):
-    for filename in os.listdir(rag_dir):
-        if filename.endswith('.json'):
-            filepath = os.path.join(rag_dir, filename)
-            with open(filepath, 'r') as f:
-                data = json.load(f)
-                chunks = data.get('chunks', [])
-                for chunk in chunks:
-                    content = chunk.get('content', '')
-                    metadata = chunk.get('metadata', {})
-                    doc = Document(page_content=content, metadata=metadata)
-                    documents.append(doc)
+def load_documents():
+    """
+    Load pre-processed Game of Thrones book chunks from JSON files.
+    
+    Each chunk contains content from the books along with metadata about
+    its source, chapter, and other contextual information.
+    
+    Returns:
+        list: A list of Document objects ready for vector embedding
+    """
+    documents = []
+    rag_dir = "output/rag_chunks"
+    if os.path.exists(rag_dir):
+        for filename in os.listdir(rag_dir):
+            if filename.endswith('.json'):
+                filepath = os.path.join(rag_dir, filename)
+                with open(filepath, 'r') as f:
+                    data = json.load(f)
+                    chunks = data.get('chunks', [])
+                    for chunk in chunks:
+                        content = chunk.get('content', '')
+                        metadata = chunk.get('metadata', {})
+                        doc = Document(page_content=content, metadata=metadata)
+                        documents.append(doc)
+    return documents
 
+# Load document chunks and create vector store for similarity search
+documents = load_documents()
 vector_store = FAISS.from_documents(documents, embeddings)
 
-# Simple retrieval function without LLM
-def retrieve_answer(question):
+# Initialize language model for text generation
+# Using a smaller model to ensure it fits within memory constraints
+model_name = "distilgpt2"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
+pipe = pipeline(
+    "text-generation",
+    model=model,
+    tokenizer=tokenizer,
+    max_new_tokens=512
+)
+local_llm = HuggingFacePipeline(pipeline=pipe)
+
+# Set up conversation memory and retrieval chain
+memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+qa_chain = ConversationalRetrievalChain.from_llm(
+    llm=local_llm,
+    retriever=vector_store.as_retriever(search_kwargs={"k": 4}),
+    memory=memory
+)
+
+def api_ask(question):
+    """
+    Process a question through the RAG system and return a formatted response.
+    
+    This function is exposed through the API endpoint and handles error
+    cases gracefully.
+    
+    Args:
+        question (str): The user's question about Game of Thrones
+        
+    Returns:
+        dict: Formatted response with answer or error message
+    """
     try:
-        # Ensure question is not None
         if not question or question is None:
             return {"response": "I didn't receive a question. Please try again."}
-            
-        # Process as before
-        docs = vector_store.similarity_search(question, k=3)
         
-        # Format a response
-        response = f"Here's what I found about '{question}':\n\n"
-        for i, doc in enumerate(docs, 1):
-            # Ensure doc.page_content is not None
-            content = doc.page_content or ""
-            response += f"Source {i}: {content}\n\n"
-            
-        return {"response": response}
+        response = qa_chain({"question": question})
+        return {"response": response["answer"]}
     except Exception as e:
         return {"error": str(e)}
 
-# Chat interface function
 def chat_interface(message, history):
-    result = retrieve_answer(message)
-    return result.get("response", f"Error: {result.get('error', 'Unknown error')}")
+    """
+    Process a message from the chat interface.
+    
+    This function is used by the Gradio chat interface to handle
+    user messages and generate responses.
+    
+    Args:
+        message (str): The user's message
+        history (list): The conversation history
+        
+    Returns:
+        str: The generated response
+    """
+    response = qa_chain({"question": message})
+    return response["answer"]
 
-# API function - formatted for Gradio
-def api_ask(question):
-    result = retrieve_answer(question)
-    return result
-
-# Set up Gradio app
+# Set up Gradio app with both chat interface and API
 with gr.Blocks() as demo:
     # Chat interface tab
     with gr.Tab("Chat"):
@@ -67,7 +133,7 @@ with gr.Blocks() as demo:
             description="Ask me anything about Game of Thrones!"
         )
     
-    # API tab for documentation
+    # API tab for documentation and testing
     with gr.Tab("API"):
         gr.Markdown("""
         ## API Endpoint
@@ -98,6 +164,7 @@ with gr.Blocks() as demo:
             description="Test the API directly"
         )
 
-# Launch the app
+# Launch the app when run directly
 if __name__ == "__main__":
+    # Start the Gradio interface on default port 7860
     demo.launch() 

@@ -11,77 +11,144 @@ pinned: false
 
 # Game of Thrones Knowledge Bot
 
-A RAG-based chatbot that can answer questions about Game of Thrones.
+An AI-powered chatbot that lets you explore the Game of Thrones books. Ask questions about characters, events, and locations with answers drawn directly from the text.
 
-An AI-powered chatbot that lets you explore and discuss the Game of Thrones books. Ask questions about characters, events, and get answers with direct citations from the source material.
+## Live Demo
+
+Try it live: [Game of Thrones Knowledge Bot](https://huggingface.co/spaces/willhcurry/gotbot)
 
 ## Features
-- EPUB to searchable text conversion
-- AI-powered question answering
-- Direct citations from the books
+- Retrieval Augmented Generation (RAG) for accurate answers
+- Direct evidence from the book series
 - Interactive chat interface
-- Vector-based search for accurate responses
+- API endpoint for programmatic access
+- Memory-efficient implementation
 
 ## Tech Stack
-- Backend:
-  - Python 3.8
-  - FastAPI
-  - LangChain for RAG implementation
+- **Backend:**
+  - Python with LangChain for RAG implementation
   - Sentence Transformers for embeddings
-  - ChromaDB for vector storage
+  - FAISS for vector search
+  - Hugging Face models for text generation
+  - Gradio for web interface and API
 
-- Frontend:
+- **Frontend:**
   - Next.js 14
   - Tailwind CSS
   - TypeScript
-  - React
+  - Deployed on Vercel
 
-## Setup
+## How It Works
 
-### Backend Setup
+1. **Book Processing Pipeline**: EPUB books are converted to text, split into semantic chunks, and stored as JSON with metadata.
+2. **Vector Embedding**: Text chunks are embedded using Sentence Transformers.
+3. **FAISS Vector Search**: When a question is asked, the system finds the most relevant text chunks.
+4. **Response Generation**: A language model generates a coherent answer based on the retrieved context.
 
-## Create conda environment
-conda create -n bookbot python=3.8
-conda activate bookbot
+## API Usage
 
-## Install dependencies
-pip install numpy==1.23.5
-pip install sentence-transformers==2.2.2
-pip install langchain-huggingface==0.0.3
-pip install fastapi uvicorn
-pip install "langchain[all]" langchain-community
-pip install EbookLib beautifulsoup4 PyMuPDF chromadb
+The knowledge bot can be accessed programmatically:
+POST https://willhcurry-gotbot.hf.space/api/predict
+{
+"data": ["Your question about Game of Thrones"]
+}
 
-## Frontend Setup
-cd got-explorer-frontend
-npm install
-npm run dev
+Response format:
+```
+{
+  "data": [{
+    "response": "Detailed answer based on the books..."
+  }]
+}
+```
 
-## Usage
+## Local Development
 
-Place EPUB files in the input folder
-Run the conversion:
+### Setup
 
-python backend/convert_books.py
+1. Clone the repository:
+   ```
+   git clone [your-repo-url]
+   cd game-of-thrones-rag-bot
+   ```
 
-Start the backend server:
+2. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
 
-cd backend
-uvicorn api:app --reload
+3. Place EPUB files in the `input` folder
 
-Start the frontend (in another terminal):
+4. Process the books:
+   ```
+   python backend/convert_books.py
+   ```
 
-cd got-explorer-frontend
-npm run dev
+5. Run the application:
+   ```
+   python backend/app.py
+   ```
 
-Visit http://localhost:3000 to use the chatbot
+6. Frontend setup (optional):
+   ```
+   cd got-explorer-frontend
+   npm install
+   npm run dev
+   ```
 
-Coming Soon
+## Deployment
 
-Enhanced response formatting
-Improved source citations
-Advanced conversation memory
-Deployment instructions
+The chatbot is deployed on Hugging Face Spaces with 16GB RAM, which provides sufficient resources for the RAG implementation.
 
-Note
+## Note
+
+For educational purposes only. You'll need your own copies of the books in EPUB format.
+
+{
+"data": [{
+"response": "Detailed answer based on the books..."
+}]
+}
+
+
+## Local Development
+
+### Setup
+
+1. Clone the repository:
+   ```
+   git clone [your-repo-url]
+   cd game-of-thrones-rag-bot
+   ```
+
+2. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+3. Place EPUB files in the `input` folder
+
+4. Process the books:
+   ```
+   python backend/convert_books.py
+   ```
+
+5. Run the application:
+   ```
+   python backend/app.py
+   ```
+
+6. Frontend setup (optional):
+   ```
+   cd got-explorer-frontend
+   npm install
+   npm run dev
+   ```
+
+## Deployment
+
+The chatbot is deployed on Hugging Face Spaces with 16GB RAM, which provides sufficient resources for the RAG implementation.
+
+## Note
+
 For educational purposes only. You'll need your own copies of the books in EPUB format.
