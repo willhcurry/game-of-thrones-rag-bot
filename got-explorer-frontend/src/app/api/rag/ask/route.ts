@@ -3,21 +3,21 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const question = body.text || "";
     
-    console.log("Request received at /api/rag/ask:", body.text);
+    console.log("Sending question to HF:", question);
     
     const response = await fetch('https://willhcurry-gotbot.hf.space/api/predict', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.HF_TOKEN}`
       },
       body: JSON.stringify({ 
-        data: [body.text || "Tell me about Game of Thrones"] 
+        data: [question]
       })
     });
     
-    console.log("Sending request to HF:", JSON.stringify({ data: [body.text || "Tell me about Game of Thrones"] }));
+    console.log("Sending request to HF:", JSON.stringify({ data: [question] }));
     
     if (!response.ok) {
       console.error('HF API error:', response.status, await response.text());
