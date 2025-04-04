@@ -30,32 +30,84 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 
+# Debug logging
+print("Starting application...")
+print(f"Current directory: {os.getcwd()}")
+print(f"Directory contents: {os.listdir()}")
+
+# Load a minimal fallback dataset directly in code
+FALLBACK_DATA = [
+    {"content": "Jon Snow is the bastard son of Eddard Stark, Lord of Winterfell.",
+     "metadata": {"book_title": "A Game of Thrones", "chapter": "Chapter 1"}},
+    {"content": "House Stark rules the North from their castle at Winterfell.",
+     "metadata": {"book_title": "A Game of Thrones", "chapter": "Chapter 2"}},
+    {"content": "The Red Wedding was a massacre of Stark forces orchestrated by Walder Frey and Roose Bolton.",
+     "metadata": {"book_title": "A Storm of Swords", "chapter": "Chapter 51"}}
+]
+
+def load_documents():
+    """Load documents with extensive error checking"""
+    documents = []
+    rag_dir = "output/rag_chunks"
+    
+    # Check if directory exists
+    if not os.path.exists(rag_dir):
+        print(f"WARNING: Directory {rag_dir} not found!")
+        print(f"Creating directory: {rag_dir}")
+        os.makedirs(rag_dir, exist_ok=True)
+        
+        # Use fallback data
+        print("Using fallback data since no documents were found")
+        for item in FALLBACK_DATA:
+            doc = Document(page_content=item["content"], metadata=item["metadata"])
+            documents.append(doc)
+        return documents
+    
+    # Try to load documents from files
+    try:
+        file_count = 0
+        for filename in os.listdir(rag_dir):
+            if filename.endswith('.json'):
+                file_count += 1
+                filepath = os.path.join(rag_dir, filename)
+                try:
+                    with open(filepath, 'r') as f:
+                        data = json.load(f)
+                        chunks = data.get('chunks', [])
+                        for chunk in chunks:
+                            content = chunk.get('content', '')
+                            metadata = chunk.get('metadata', {})
+                            doc = Document(page_content=content, metadata=metadata)
+                            documents.append(doc)
+                except Exception as e:
+                    print(f"Error loading file {filepath}: {str(e)}")
+        
+        print(f"Processed {file_count} files, loaded {len(documents)} documents")
+        
+        # If no documents were loaded, use fallback data
+        if not documents:
+            print("No documents were loaded from files, using fallback data")
+            for item in FALLBACK_DATA:
+                doc = Document(page_content=item["content"], metadata=item["metadata"])
+                documents.append(doc)
+    except Exception as e:
+        print(f"Error loading documents: {str(e)}")
+        # Use fallback data
+        print("Using fallback data due to error")
+        for item in FALLBACK_DATA:
+            doc = Document(page_content=item["content"], metadata=item["metadata"])
+            documents.append(doc)
+    
+    return documents
+
 print("Loading embeddings...")
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-def load_documents():
-    print("Loading documents...")
-    documents = []
-    rag_dir = "output/rag_chunks"
-    if os.path.exists(rag_dir):
-        print(f"Found rag_dir: {rag_dir}")
-        for filename in os.listdir(rag_dir):
-            if filename.endswith('.json'):
-                filepath = os.path.join(rag_dir, filename)
-                print(f"Processing file: {filepath}")
-                with open(filepath, 'r') as f:
-                    data = json.load(f)
-                    chunks = data.get('chunks', [])
-                    for chunk in chunks:
-                        content = chunk.get('content', '')
-                        metadata = chunk.get('metadata', {})
-                        doc = Document(page_content=content, metadata=metadata)
-                        documents.append(doc)
-    print(f"Loaded {len(documents)} documents")
-    return documents
+print("Loading documents...")
+documents = load_documents()
+print(f"Loaded {len(documents)} documents")
 
 print("Creating vector store...")
-documents = load_documents()
 vector_store = FAISS.from_documents(documents, embeddings)
 print("Vector store created successfully")
 
@@ -81,32 +133,58 @@ qa_chain = ConversationalRetrievalChain.from_llm(
 )
 
 def answer_question(question):
-    """Simple question answering function"""
+    """Simple question answering function with detailed logging"""
     print(f"Received question: '{question}'")
     
     if not question or question.strip() == "":
         return "I didn't receive a question. Please try again."
     
-    # Get relevant documents
-    docs = vector_store.similarity_search(question, k=3)
-    
-    # Format response
-    response = f"Here's what I found about '{question}':\n\n"
-    for i, doc in enumerate(docs, 1):
-        source = doc.metadata.get('book_title', 'Game of Thrones')
-        chapter = doc.metadata.get('chapter', 'Unknown chapter')
-        response += f"From {source} ({chapter}):\n{doc.page_content}\n\n"
-    
-    return response
+    try:
+        # Get relevant documents
+        print(f"Searching for: '{question}'")
+        docs = vector_store.similarity_search(question, k=2)
+        print(f"Found {len(docs)} relevant documents")
+        
+        if not docs:
+            return "I couldn't find any information about that in the Game of Thrones books."
+        
+        # Format response
+        response = f"Here's what I found about '{question}':\n\n"
+        for i, doc in enumerate(docs, 1):
+            source = doc.metadata.get('book_title', 'Game of Thrones')
+            chapter = doc.metadata.get('chapter', 'Unknown chapter')
+            content = doc.page_content
+            print(f"Doc {i}: {source}, {chapter}, content length: {len(content)}")
+            response += f"From {source} ({chapter}):\n{content}\n\n"
+        
+        return response
+    except Exception as e:
+        print(f"Error answering question: {str(e)}")
+        return f"Sorry, I encountered an error: {str(e)}"
 
 # Create Gradio Interface
-demo = gr.Interface(
-    fn=answer_question,
-    inputs=gr.Textbox(lines=2, placeholder="Ask about Game of Thrones..."),
-    outputs="text",
-    title="Game of Thrones Knowledge Bot",
-    description="Ask me anything about the Game of Thrones books!"
-)
+with gr.Blocks() as demo:
+    gr.Markdown("# Game of Thrones Knowledge Bot")
+    
+    with gr.Tab("Chat"):
+        question_input = gr.Textbox(lines=2, placeholder="Ask about Game of Thrones...")
+        answer_output = gr.Textbox(lines=10)
+        submit_btn = gr.Button("Ask")
+        submit_btn.click(answer_question, inputs=question_input, outputs=answer_output)
+    
+    with gr.Tab("API"):
+        gr.Markdown("""
+        ## API Usage
+        
+        Send POST requests to: `https://willhcurry-gotbot.hf.space/api/predict`
+        
+        Format:
+        ```json
+        {
+          "data": ["Your question here"]
+        }
+        ```
+        """)
 
 # Launch the app
 if __name__ == "__main__":
