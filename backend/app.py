@@ -31,6 +31,7 @@ if os.path.exists(rag_dir):
 vector_store = FAISS.from_documents(documents, embeddings)
 llm = HuggingFaceHub(
     repo_id="google/flan-t5-small",
+    task="text-generation",
     model_kwargs={"temperature": 0.7, "max_length": 512}
 )
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
