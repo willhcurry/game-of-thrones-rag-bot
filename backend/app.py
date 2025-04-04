@@ -5,7 +5,8 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.docstore.document import Document
 from langchain.llms import HuggingFacePipeline
-from langchain.chains import RetrievalQA
+from langchain.chains import ConversationalRetrievalChain
+from langchain.memory import ConversationBufferMemory
 from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 
 # Print debug info
@@ -51,32 +52,69 @@ pipe = pipeline(
 local_llm = HuggingFacePipeline(pipeline=pipe)
 print("Local model loaded")
 
-# Create a QA chain
-qa_chain = RetrievalQA.from_chain_type(
+# Set up memory and QA chain
+memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+qa_chain = ConversationalRetrievalChain.from_llm(
     llm=local_llm,
-    chain_type="stuff",
-    retriever=vector_store.as_retriever(search_kwargs={"k": 3})
+    retriever=vector_store.as_retriever(search_kwargs={"k": 4}),
+    memory=memory
 )
-print("QA chain created")
 
-# Answer function that uses the QA chain
-def answer_question(question):
+# Define API function
+def api_ask(question):
     try:
-        response = qa_chain.run(question)
-        return response
+        response = qa_chain({"question": question})
+        return {"response": response["answer"]}
     except Exception as e:
-        return f"Error: {str(e)}"
+        return {"error": str(e)}
 
-# Create Gradio interface
-demo = gr.Interface(
-    fn=answer_question,
-    inputs=gr.Textbox(label="Question"),
-    outputs=gr.Textbox(label="Answer"),
-    title="Game of Thrones Knowledge Bot",
-    description="Ask me anything about Game of Thrones!"
-)
+# Create chat interface
+def chat_interface(message, history):
+    response = qa_chain({"question": message})
+    return response["answer"]
 
-# Launch
+# Set up Gradio app with both chat interface and API
+with gr.Blocks() as demo:
+    # Chat interface tab
+    with gr.Tab("Chat"):
+        gr.ChatInterface(
+            chat_interface,
+            title="Game of Thrones Knowledge Bot",
+            description="Ask me anything about Game of Thrones!"
+        )
+    
+    # API tab for documentation
+    with gr.Tab("API"):
+        gr.Markdown("""
+        ## API Endpoint
+        
+        You can access this bot programmatically using the following endpoint:
+        
+        ```
+        POST https://willhcurry-gotbot.hf.space/api/predict
+        
+        {
+          "data": ["Your question here"]
+        }
+        ```
+        
+        The response will be in this format:
+        ```
+        {
+          "data": [{"response": "Answer to your question"}]
+        }
+        ```
+        """)
+        
+        gr.Interface(
+            fn=api_ask,
+            inputs=gr.Textbox(label="Test question"),
+            outputs=gr.JSON(label="Response"),
+            title="API Tester",
+            description="Test the API directly"
+        )
+
+# Launch the app
 if __name__ == "__main__":
     print("Launching Gradio interface...")
     demo.launch() 
