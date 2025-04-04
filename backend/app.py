@@ -101,8 +101,28 @@ def api_ask(question):
         if not question or question is None:
             return {"response": "I didn't receive a question. Please try again."}
         
-        response = qa_chain({"question": question})
-        return {"response": response["answer"]}
+        # Safer approach: Get documents directly first
+        try:
+            docs = vector_store.similarity_search(question, k=4)
+            
+            # If no documents found, return a graceful message
+            if not docs:
+                return {"response": "I couldn't find any information about that in the Game of Thrones books."}
+                
+            # Format a simple response from the retrieved documents
+            response_text = f"Here's what I found about '{question}':\n\n"
+            for i, doc in enumerate(docs, 1):
+                source = doc.metadata.get('book_title', 'Game of Thrones')
+                chapter = doc.metadata.get('chapter', 'Unknown chapter')
+                response_text += f"From {source} ({chapter}):\n{doc.page_content}\n\n"
+                
+            return {"response": response_text}
+            
+        except Exception as e:
+            # Fallback to the QA chain, with error handling
+            response = qa_chain({"question": question})
+            return {"response": response["answer"]}
+            
     except Exception as e:
         return {"error": str(e)}
 
