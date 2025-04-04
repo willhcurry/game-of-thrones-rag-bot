@@ -74,7 +74,11 @@ export default function Home() {
        
        const ragResponse = await fetch('/api/rag/ask', {
          method: 'POST',
-         headers: {'Content-Type': 'application/json'},
+         headers: {
+           'Content-Type': 'application/json',
+           // Uncomment the line below if you decide to use the token
+           // 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_HF_TOKEN}`
+         },
          body: JSON.stringify({ 
            data: [input]  // Format data as an array
          }),
@@ -147,7 +151,11 @@ export default function Home() {
    
    fetch('/api/rag/ask', {
      method: 'POST',
-     headers: {'Content-Type': 'application/json'},
+     headers: {
+       'Content-Type': 'application/json',
+       // Uncomment the line below if you decide to use the token
+       // 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_HF_TOKEN}`
+     },
      body: JSON.stringify({ 
        data: [question]  // Format data as an array
      }),
