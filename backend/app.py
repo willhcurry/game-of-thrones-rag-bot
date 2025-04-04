@@ -85,23 +85,39 @@ qa_chain = ConversationalRetrievalChain.from_llm(
 )
 
 def api_ask(question):
-    """Process a question through the RAG system and return a formatted response."""
+    """
+    Process a question through the RAG system and return a formatted response.
+    
+    This function handles both direct API calls and Gradio interface usage.
+    
+    Args:
+        question: Can be a string or the first item in a list
+        
+    Returns:
+        dict: Formatted response with answer
+    """
     try:
-        # Check if we're receiving a direct question string or the first array item
-        if isinstance(question, list) and len(question) > 0:
-            question = question[0]  # Extract from array if needed
+        # Print what we received for debugging
+        print(f"Received raw input: {question} (type: {type(question)})")
+        
+        # Extract the actual question text based on input type
+        actual_question = None
+        
+        if isinstance(question, str):
+            actual_question = question
+        elif isinstance(question, list) and len(question) > 0:
+            actual_question = question[0]
+        
+        print(f"Extracted question: {actual_question}")
             
-        # Debug what we received
-        print(f"Received question: {question} (type: {type(question)})")
-            
-        if not question or question is None:
+        if not actual_question:
             return {"response": "I didn't receive a question. Please try again."}
         
-        # Get documents directly first
-        docs = vector_store.similarity_search(question, k=3)
+        # Get documents directly
+        docs = vector_store.similarity_search(actual_question, k=3)
         
-        # Format a simple response from the retrieved documents
-        response_text = f"Here's what I found about '{question}':\n\n"
+        # Format response from retrieved documents
+        response_text = f"Here's what I found about '{actual_question}':\n\n"
         for i, doc in enumerate(docs, 1):
             source = doc.metadata.get('book_title', 'Game of Thrones')
             chapter = doc.metadata.get('chapter', 'Unknown chapter')
@@ -110,6 +126,7 @@ def api_ask(question):
         return {"response": response_text}
             
     except Exception as e:
+        print(f"Error processing question: {str(e)}")
         return {"error": str(e)}
 
 def chat_interface(message, history):
