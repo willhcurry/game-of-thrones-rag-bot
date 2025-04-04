@@ -29,13 +29,19 @@ vector_store = FAISS.from_documents(documents, embeddings)
 # Simple retrieval function without LLM
 def retrieve_answer(question):
     try:
-        # Get relevant documents
+        # Ensure question is not None
+        if not question or question is None:
+            return {"response": "I didn't receive a question. Please try again."}
+            
+        # Process as before
         docs = vector_store.similarity_search(question, k=3)
         
         # Format a response
         response = f"Here's what I found about '{question}':\n\n"
         for i, doc in enumerate(docs, 1):
-            response += f"Source {i}: {doc.page_content}\n\n"
+            # Ensure doc.page_content is not None
+            content = doc.page_content or ""
+            response += f"Source {i}: {content}\n\n"
             
         return {"response": response}
     except Exception as e:

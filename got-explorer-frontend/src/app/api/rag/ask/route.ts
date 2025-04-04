@@ -13,11 +13,11 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${process.env.HF_TOKEN}`
       },
       body: JSON.stringify({ 
-        data: [body.text] 
+        data: [body.text || "Tell me about Game of Thrones"] 
       })
     });
     
-    console.log("Sending request to HF:", JSON.stringify({ data: [body.text] }));
+    console.log("Sending request to HF:", JSON.stringify({ data: [body.text || "Tell me about Game of Thrones"] }));
     
     if (!response.ok) {
       console.error('HF API error:', response.status, await response.text());
@@ -27,14 +27,17 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const rawData = await response.json();
-    console.log("Raw response from Hugging Face:", JSON.stringify(rawData));
+    const data = await response.json();
+    console.log("Raw response:", data);
     
-    const answer = 
-      rawData.data?.[0]?.response || 
-      rawData.data?.[0] || 
-      (typeof rawData.data === 'string' ? rawData.data : null) ||
-      "No response received";
+    let answer;
+    if (data.error) {
+      answer = `Error: ${data.error}`;
+    } else if (data.data && Array.isArray(data.data) && data.data[0]) {
+      answer = data.data[0].response || data.data[0];
+    } else {
+      answer = "Received unexpected response format from knowledge base";
+    }
     
     console.log("Extracted answer:", answer);
     
