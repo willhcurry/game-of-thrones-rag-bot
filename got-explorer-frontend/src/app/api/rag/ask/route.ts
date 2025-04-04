@@ -12,8 +12,12 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.HF_TOKEN}`
       },
-      body: JSON.stringify({ data: [body.text] })
+      body: JSON.stringify({ 
+        data: [body.text] 
+      })
     });
+    
+    console.log("Sending request to HF:", JSON.stringify({ data: [body.text] }));
     
     if (!response.ok) {
       console.error('HF API error:', response.status, await response.text());
@@ -23,9 +27,17 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const data = await response.json();
-    console.log("Response from HF:", data);
-    const answer = data.data?.[0]?.response || "No response received";
+    const rawData = await response.json();
+    console.log("Raw response from Hugging Face:", JSON.stringify(rawData));
+    
+    const answer = 
+      rawData.data?.[0]?.response || 
+      rawData.data?.[0] || 
+      (typeof rawData.data === 'string' ? rawData.data : null) ||
+      "No response received";
+    
+    console.log("Extracted answer:", answer);
+    
     return NextResponse.json({
       status: 'success',
       response: answer
