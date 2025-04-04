@@ -228,8 +228,8 @@ export default function Home() {
  };
 
  return (
-   <main className="flex min-h-screen flex-col bg-black text-white">
-     <div className="flex-1 p-4 max-w-4xl mx-auto w-full">
+   <main className="flex min-h-screen flex-col text-white">
+     <div className="flex-1 p-4 max-w-4xl mx-auto">
        {/* Header with Game of Thrones-inspired styling */}
        <div className="mb-8 text-center">
          <h1 className="text-5xl font-bold text-red-600 mb-2">
@@ -238,8 +238,8 @@ export default function Home() {
          <p className="text-amber-100">Ask anything about the books...</p>
        </div>
        
-       {/* Chat container with visible border and theme-appropriate styling */}
-       <div className="bg-gray-900/80 border border-gray-700 rounded-lg p-6 mb-20 min-h-[400px] shadow-lg">
+       {/* Chat container with more explicit visibility */}
+       <div className="chat-container p-6 mb-20 min-h-[400px] w-full block">
          {/* Empty state message if no messages */}
          {messages.length === 0 && (
            <div className="text-center text-gray-400 py-10">

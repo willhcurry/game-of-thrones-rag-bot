@@ -85,43 +85,29 @@ qa_chain = ConversationalRetrievalChain.from_llm(
 )
 
 def api_ask(question):
-    """
-    Process a question through the RAG system and return a formatted response.
-    
-    This function is exposed through the API endpoint and handles error
-    cases gracefully.
-    
-    Args:
-        question (str): The user's question about Game of Thrones
-        
-    Returns:
-        dict: Formatted response with answer or error message
-    """
+    """Process a question through the RAG system and return a formatted response."""
     try:
+        # Check if we're receiving a direct question string or the first array item
+        if isinstance(question, list) and len(question) > 0:
+            question = question[0]  # Extract from array if needed
+            
+        # Debug what we received
+        print(f"Received question: {question} (type: {type(question)})")
+            
         if not question or question is None:
             return {"response": "I didn't receive a question. Please try again."}
         
-        # Safer approach: Get documents directly first
-        try:
-            docs = vector_store.similarity_search(question, k=4)
+        # Get documents directly first
+        docs = vector_store.similarity_search(question, k=3)
+        
+        # Format a simple response from the retrieved documents
+        response_text = f"Here's what I found about '{question}':\n\n"
+        for i, doc in enumerate(docs, 1):
+            source = doc.metadata.get('book_title', 'Game of Thrones')
+            chapter = doc.metadata.get('chapter', 'Unknown chapter')
+            response_text += f"From {source} ({chapter}):\n{doc.page_content}\n\n"
             
-            # If no documents found, return a graceful message
-            if not docs:
-                return {"response": "I couldn't find any information about that in the Game of Thrones books."}
-                
-            # Format a simple response from the retrieved documents
-            response_text = f"Here's what I found about '{question}':\n\n"
-            for i, doc in enumerate(docs, 1):
-                source = doc.metadata.get('book_title', 'Game of Thrones')
-                chapter = doc.metadata.get('chapter', 'Unknown chapter')
-                response_text += f"From {source} ({chapter}):\n{doc.page_content}\n\n"
-                
-            return {"response": response_text}
-            
-        except Exception as e:
-            # Fallback to the QA chain, with error handling
-            response = qa_chain({"question": question})
-            return {"response": response["answer"]}
+        return {"response": response_text}
             
     except Exception as e:
         return {"error": str(e)}
