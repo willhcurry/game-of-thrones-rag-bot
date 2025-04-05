@@ -103,19 +103,19 @@ export default function Home() {
      }
 
      // If RAG backend fails, use the local implementation
-     const fallbackResponse = await fetch('/api/ask', {
+     const response = await fetch('/api/ask', {
        method: 'POST',
        headers: {'Content-Type': 'application/json'},
        body: JSON.stringify({ text: input }),
      });
 
-     if (!fallbackResponse.ok) {
-       throw new Error(`HTTP error! status: ${fallbackResponse.status}`);
+     if (!response.ok) {
+       throw new Error(`HTTP error! status: ${response.status}`);
      }
 
      // Process and display the response
-     const data = await fallbackResponse.json();
-     const botResponse = data.response || data.answer || "No response received";
+     const data = await response.json();
+     const botResponse = data.response || "No response received";
      setMessages(prev => [...prev, { text: botResponse, isUser: false }]);
    } catch (error) {
      console.error('Error submitting question:', error);
