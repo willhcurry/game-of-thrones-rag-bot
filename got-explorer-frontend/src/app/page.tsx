@@ -67,54 +67,35 @@ export default function Home() {
    setIsLoading(true);
    
    try {
-     // Try the RAG backend first
+     // First try the RAG endpoint
      try {
-       const controller = new AbortController();
-       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-       
        const ragResponse = await fetch('/api/rag/ask', {
          method: 'POST',
-         headers: {
-           'Content-Type': 'application/json',
-           // Uncomment the line below if you decide to use the token
-           // 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_HF_TOKEN}`
-         },
-         body: JSON.stringify({ 
-           data: [input]  // Format data as an array
-         }),
-         signal: controller.signal
+         headers: {'Content-Type': 'application/json'},
+         body: JSON.stringify({ text: input }),
+         signal: AbortSignal.timeout(10000) // 10 second timeout
        });
-       
-       clearTimeout(timeoutId);
        
        if (ragResponse.ok) {
          const data = await ragResponse.json();
-         console.log("RAG response data:", data);
-         
-         // Get the response text from the correct path in the data
          const botResponse = data.response || "No response received";
          setMessages(prev => [...prev, { text: botResponse, isUser: false }]);
          setIsLoading(false);
          setInput('');
          return;
        }
-     } catch {
-       console.log("RAG backend unavailable, using fallback");
+     } catch (ragError) {
+       console.log("RAG endpoint failed, falling back to local:", ragError);
      }
 
-     // If RAG backend fails, use the local implementation
-     const response = await fetch('/api/ask', {
+     // If RAG fails, fall back to local
+     const fallbackResponse = await fetch('/api/ask', {
        method: 'POST',
        headers: {'Content-Type': 'application/json'},
        body: JSON.stringify({ text: input }),
      });
 
-     if (!response.ok) {
-       throw new Error(`HTTP error! status: ${response.status}`);
-     }
-
-     // Process and display the response
-     const data = await response.json();
+     const data = await fallbackResponse.json();
      const botResponse = data.response || "No response received";
      setMessages(prev => [...prev, { text: botResponse, isUser: false }]);
    } catch (error) {
@@ -124,7 +105,6 @@ export default function Home() {
        isUser: false 
      }]);
    } finally {
-     // Reset state regardless of success or failure
      setIsLoading(false);
      setInput('');
    }

@@ -3,41 +3,51 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log("Request to HF:", body);
+    console.log("Request to Hugging Face:", body);
     
+    // Extract the question from whatever format it comes in
+    const question = body.text || (body.data && body.data[0]) || "";
+    
+    if (!question) {
+      return NextResponse.json({
+        status: 'error',
+        response: "I didn't receive a question. Please try again."
+      });
+    }
+    
+    // Make the request to Hugging Face
     const response = await fetch('https://willhcurry-gotbot.hf.space/api/predict', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ data: [body.text || ""] })
+      body: JSON.stringify({ 
+        data: [question] 
+      })
     });
     
-    const data = await response.json();
-    console.log("Response from HF:", data);
-    
-    // Check for errors in the response
-    if (data?.data?.[0]?.error) {
-      console.error("Error from Hugging Face:", data.data[0].error);
-      return NextResponse.json({
-        status: 'success',
-        response: "I'm having trouble connecting to my knowledge base. Please try a different question or try again later."
-      });
+    if (!response.ok) {
+      throw new Error(`Hugging Face API returned status ${response.status}`);
     }
     
-    // Extract response or use fallback
-    const answer = data?.data?.[0]?.response || 
-                   "I couldn't find information about that in the Game of Thrones books.";
+    const data = await response.json();
+    console.log("Response from Hugging Face:", data);
+    
+    // Extract the response text properly
+    let answer = "No response received";
+    if (data.data && Array.isArray(data.data) && data.data[0]) {
+      answer = data.data[0].response || data.data[0];
+    }
     
     return NextResponse.json({
       status: 'success',
       response: answer
     });
   } catch (error) {
-    console.error('Proxy error:', error);
+    console.error('Error connecting to Hugging Face API:', error);
     return NextResponse.json({
-      status: 'success',
-      response: "I'm having trouble reaching my knowledge base. Please try again later."
-    });
+      status: 'error',
+      response: "I'm having trouble connecting to my knowledge base."
+    }, { status: 502 });
   }
 }
